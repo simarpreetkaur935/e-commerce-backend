@@ -116,7 +116,7 @@ const productSchema = new Schema<IProduct>(
 
     specifications: {
       type: Map,
-      of: String,
+      of: String, 
       default: {},
     },
 

@@ -9,28 +9,31 @@ import {
   resetPassword,
   refreshAccessToken,
 } from "../app/Controllers/Auth.controller";
+import { registerValidations } from "../app/Middleware/Validations.middleware";
+import { ErrorsCheck } from "../app/Middleware/ErrorsCheck.middleware";
+import { loginValidations } from "../app/Middleware/Validations.middleware";
 
-const router = express.Router();
+const authRoutes = express.Router();
 
 // Register
-router.post("/register", register);
+authRoutes.post("/register", registerValidations, ErrorsCheck, register);
 
 // Login
-router.post("/login", login);
+authRoutes.post("/login",loginValidations, ErrorsCheck, login);
 
 // Logout
-router.post("/logout", logout);
+authRoutes.post("/logout", logout);
 
 // Current user
-router.get("/me", getMe);
+authRoutes.get("/me", getMe);
 
 // Forgot password - generate OTP
-router.post("/forgot-password", forgotPassword);
+authRoutes.post("/forgot-password", forgotPassword);
 
 // Reset password - verify OTP and change password
-router.post("/reset-password", resetPassword);
+authRoutes.post("/reset-password", resetPassword);
 
 // Refresh access token
-router.post("/refresh-token", refreshAccessToken);
+authRoutes.post("/refresh-token", refreshAccessToken);
 
-export default router;
+export default authRoutes;

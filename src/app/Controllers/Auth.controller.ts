@@ -14,46 +14,11 @@ export const register = async (req: Request, res: Response) => {
       email,
       phone,
       password,
-      confirmPassword,
       avatar,
       address,
     } = req.body;
 
-    // Check required fields
-    if (!name || !email || !phone || !password || !confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields",
-      });
-    }
-
-    // Check passwords
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Passwords do not match",
-      });
-    }
-
-    // Check existing email
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: "Email already registered",
-      });
-    }
-
-    // Check existing phone
-    const existingPhone = await User.findOne({ phone });
-
-    if (existingPhone) {
-      return res.status(409).json({
-        success: false,
-        message: "Phone number already registered",
-      });
-    }
+    
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -98,27 +63,13 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required",
-      });
-    }
-
     // Find user
     const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
 
     // Compare password
     const isPasswordCorrect = await bcrypt.compare(
       password,
-      user.password
+      user!.password
     );
 
     if (!isPasswordCorrect) {
@@ -142,7 +93,7 @@ export const login = async (req: Request, res: Response) => {
     // Create access token
     const accessToken = jwt.sign(
       {
-        userId: user._id,
+        userId: user!._id,
       },
       jwtSecret,
       {
@@ -153,7 +104,7 @@ export const login = async (req: Request, res: Response) => {
     // Create refresh token
     const refreshToken = jwt.sign(
       {
-        userId: user._id,
+        userId: user!._id,
       },
       refreshSecret,
       {
@@ -162,8 +113,8 @@ export const login = async (req: Request, res: Response) => {
     );
 
     // Save refresh token
-    user.refreshToken = refreshToken;
-    await user.save();
+    user!.refreshToken = refreshToken;
+    await user!.save();
 
     // Send refresh token as HTTP-only cookie
     res.cookie("refreshToken", refreshToken, {
@@ -178,14 +129,15 @@ export const login = async (req: Request, res: Response) => {
       message: "Login successful",
       accessToken,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        address: user.address,
+        id: user!._id,
+        name: user!.name,
+        email: user!.email,
+        phone: user!.phone,
+        avatar: user!.avatar,
+        address: user!.address,
       },
     });
+
   } catch (error) {
     console.error("Login Error:", error);
 
@@ -195,7 +147,6 @@ export const login = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 // =========================
 // LOGOUT
@@ -274,22 +225,8 @@ export const forgotPassword = async (
   try {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required",
-      });
-    }
-
-    // Check if email exists
+    // Find user
     const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "No account found with this email",
-      });
-    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(
@@ -297,14 +234,14 @@ export const forgotPassword = async (
     ).toString();
 
     // Save OTP
-    user.resetPasswordOtp = otp;
+    user!.resetPasswordOtp = otp;
 
     // OTP expires in 10 minutes
-    user.resetPasswordOtpExpires = new Date(
+    user!.resetPasswordOtpExpires = new Date(
       Date.now() + 10 * 60 * 1000
     );
 
-    await user.save();
+    await user!.save();
 
     // Development only
     console.log("Password Reset OTP:", otp);
@@ -338,40 +275,16 @@ export const resetPassword = async (
       email,
       otp,
       password,
-      confirmPassword,
     } = req.body;
-
-    // Check required fields
-    if (!email || !otp || !password || !confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Email, OTP and password are required",
-      });
-    }
-
-    // Check passwords
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Passwords do not match",
-      });
-    }
 
     // Find user
     const user = await User.findOne({ email });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
     // Check OTP
     if (
-      user.resetPasswordOtp !== otp ||
-      !user.resetPasswordOtpExpires ||
-      user.resetPasswordOtpExpires < new Date()
+      user!.resetPasswordOtp !== otp ||
+      !user!.resetPasswordOtpExpires ||
+      user!.resetPasswordOtpExpires < new Date()
     ) {
       return res.status(400).json({
         success: false,
@@ -386,16 +299,17 @@ export const resetPassword = async (
     );
 
     // Update password
-    user.password = hashedPassword;
+    user!.password = hashedPassword;
 
     // Remove OTP after successful reset
-    user.resetPasswordOtp = undefined;
-    user.resetPasswordOtpExpires = undefined;
+    user!.resetPasswordOtp = undefined;
+    user!.resetPasswordOtpExpires = undefined;
 
     // Invalidate old refresh token
-    user.refreshToken = undefined;
+    user!.refreshToken = undefined;
 
-    await user.save();
+    // Save user
+    await user!.save();
 
     return res.status(200).json({
       success: true,
