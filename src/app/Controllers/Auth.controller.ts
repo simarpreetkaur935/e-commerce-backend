@@ -1,0 +1,486 @@
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+import User from "../Model/User.model";
+
+// =========================
+// REGISTER
+// =========================
+export const register = async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      avatar,
+      address,
+    } = req.body;
+
+    // Check required fields
+    if (!name || !email || !phone || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    // Check passwords
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    // Check existing email
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered",
+      });
+    }
+
+    // Check existing phone
+    const existingPhone = await User.findOne({ phone });
+
+    if (existingPhone) {
+      return res.status(409).json({
+        success: false,
+        message: "Phone number already registered",
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      avatar,
+      address,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        address: user.address,
+      },
+    });
+  } catch (error) {
+    console.error("Register Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+// =========================
+// LOGIN
+// =========================
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Compare password
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // JWT secrets
+    const jwtSecret = process.env.JWT_SECRET;
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+    if (!jwtSecret || !refreshSecret) {
+      return res.status(500).json({
+        success: false,
+        message: "JWT secrets are not configured",
+      });
+    }
+
+    // Create access token
+    const accessToken = jwt.sign(
+      {
+        userId: user._id,
+      },
+      jwtSecret,
+      {
+        expiresIn: "15m",
+      }
+    );
+
+    // Create refresh token
+    const refreshToken = jwt.sign(
+      {
+        userId: user._id,
+      },
+      refreshSecret,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    // Save refresh token
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Send refresh token as HTTP-only cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      accessToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        address: user.address,
+      },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+// =========================
+// LOGOUT
+// =========================
+export const logout = async (_req:Request, res: Response) => {
+  try {
+    const refreshToken = _req.cookies?.refreshToken;
+
+    if (refreshToken) {
+      await User.findOneAndUpdate(
+        { refreshToken },
+        { $unset: { refreshToken: 1 } }
+      );
+    }
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (error) {
+    console.error("Logout Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+// =========================
+// GET CURRENT USER
+// =========================
+export const getMe = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+
+    const user = await User.findById(userId).select("-password -refreshToken");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("Get User Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+
+// =========================
+// FORGOT PASSWORD - GENERATE OTP
+// =========================
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Check if email exists
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No account found with this email",
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    // Save OTP
+    user.resetPasswordOtp = otp;
+
+    // OTP expires in 10 minutes
+    user.resetPasswordOtpExpires = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    await user.save();
+
+    // Development only
+    console.log("Password Reset OTP:", otp);
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified. OTP generated successfully",
+      otp,
+    });
+
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+// =========================
+// RESET PASSWORD WITH OTP
+// =========================
+export const resetPassword = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const {
+      email,
+      otp,
+      password,
+      confirmPassword,
+    } = req.body;
+
+    // Check required fields
+    if (!email || !otp || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, OTP and password are required",
+      });
+    }
+
+    // Check passwords
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check OTP
+    if (
+      user.resetPasswordOtp !== otp ||
+      !user.resetPasswordOtpExpires ||
+      user.resetPasswordOtpExpires < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(
+      password,
+      10
+    );
+
+    // Update password
+    user.password = hashedPassword;
+
+    // Remove OTP after successful reset
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordOtpExpires = undefined;
+
+    // Invalidate old refresh token
+    user.refreshToken = undefined;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
+
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// =========================
+// REFRESH ACCESS TOKEN
+// =========================
+export const refreshAccessToken = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token not found",
+      });
+    }
+
+    const jwtSecret = process.env.JWT_SECRET;
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+    if (!jwtSecret || !refreshSecret) {
+      return res.status(500).json({
+        success: false,
+        message: "JWT secrets are not configured",
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(
+      refreshToken,
+      refreshSecret
+    ) as {
+      userId: string;
+    };
+
+    // Check token exists in database
+    const user = await User.findOne({
+      _id: decoded.userId,
+      refreshToken,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Create new access token
+    const newAccessToken = jwt.sign(
+      {
+        userId: user._id,
+      },
+      jwtSecret,
+      {
+        expiresIn: "15m",
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+    });
+  } catch (error) {
+    console.error("Refresh Token Error:", error);
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
