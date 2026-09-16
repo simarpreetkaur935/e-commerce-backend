@@ -4,7 +4,7 @@ import {
   register,
   login,
   logout,
-  getMe,
+  
   forgotPassword,
   resetPassword,
   refreshAccessToken,
@@ -24,8 +24,6 @@ authRoutes.post("/login",loginValidations, ErrorsCheck, login);
 // Logout
 authRoutes.post("/logout", logout);
 
-// Current user
-authRoutes.get("/me", getMe);
 
 // Forgot password - generate OTP
 authRoutes.post("/forgot-password", forgotPassword);

@@ -37,54 +37,26 @@ export const getMyProfile = async (
     });
   }
 };
-
-
-// =========================
-// UPDATE MY PROFILE
-// =========================
+///update profile
 
 export const updateMyProfile = async (
   req: Request,
   res: Response
 ) => {
   try {
-    const userId = (req as any).userId;
-
     const {
       name,
       phone,
       avatar,
       address,
+      user,
     } = req.body;
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // Update only provided fields
     if (name !== undefined) {
       user.name = name;
     }
 
     if (phone !== undefined) {
-      // Check if another user already has this phone
-      const existingPhone = await User.findOne({
-        phone,
-        _id: { $ne: userId },
-      });
-
-      if (existingPhone) {
-        return res.status(409).json({
-          success: false,
-          message: "Phone number already registered",
-        });
-      }
-
       user.phone = phone;
     }
 
@@ -119,56 +91,17 @@ export const updateMyProfile = async (
     });
   }
 };
-
-
-// =========================
-// CHANGE PASSWORD
-// =========================
-
+//change password
 export const changePassword = async (
   req: Request,
   res: Response
 ) => {
   try {
-    const userId = (req as any).userId;
+    const { currentPassword, newPassword, user } = req.body;
 
-    const {
-      currentPassword,
-      newPassword,
-      confirmPassword,
-    } = req.body;
-
-    if (
-      !currentPassword ||
-      !newPassword ||
-      !confirmPassword
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "All password fields are required",
-      });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "New passwords do not match",
-      });
-    }
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // Check current password
     const isPasswordCorrect = await bcrypt.compare(
       currentPassword,
-      user.password
+      user!.password
     );
 
     if (!isPasswordCorrect) {
@@ -178,18 +111,15 @@ export const changePassword = async (
       });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(
       newPassword,
       10
     );
 
-    user.password = hashedPassword;
+    user!.password = hashedPassword;
+    user!.refreshToken = undefined;
 
-    // Invalidate existing refresh token
-    user.refreshToken = undefined;
-
-    await user.save();
+    await user!.save();
 
     return res.status(200).json({
       success: true,

@@ -13,13 +13,6 @@ export const createCategory = (req: Request, res: Response) => {
     parentCategory,
   } = req.body;
 
-  if (!name) {
-    res.status(400).json({
-      success: false,
-      message: "Category name is required",
-    });
-    return;
-  }
 
   Category.findOne({ name: name.trim() })
     .then((existingCategory) => {

@@ -61,10 +61,10 @@ export const register = async (req: Request, res: Response) => {
 // =========================
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+       const { password, user } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
+    
+   
 
     // Compare password
     const isPasswordCorrect = await bcrypt.compare(
@@ -184,38 +184,6 @@ export const logout = async (_req:Request, res: Response) => {
 
 
 // =========================
-// GET CURRENT USER
-// =========================
-export const getMe = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId;
-
-    const user = await User.findById(userId).select("-password -refreshToken");
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      user,
-    });
-  } catch (error) {
-    console.error("Get User Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-};
-
-
-
-// =========================
 // FORGOT PASSWORD - GENERATE OTP
 // =========================
 export const forgotPassword = async (
@@ -223,10 +191,9 @@ export const forgotPassword = async (
   res: Response
 ) => {
   try {
-    const { email } = req.body;
+    const { user } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
+ 
 
     // Generate 6-digit OTP
     const otp = Math.floor(
@@ -272,25 +239,13 @@ export const resetPassword = async (
 ) => {
   try {
     const {
-      email,
-      otp,
-      password,
+    user,
+    password,
     } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
 
-    // Check OTP
-    if (
-      user!.resetPasswordOtp !== otp ||
-      !user!.resetPasswordOtpExpires ||
-      user!.resetPasswordOtpExpires < new Date()
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP",
-      });
-    }
+
+
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(
