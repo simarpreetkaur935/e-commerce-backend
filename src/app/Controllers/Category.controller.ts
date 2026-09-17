@@ -6,53 +6,15 @@ import Category from "../Model/Category.model";
 // =========================
 
 export const createCategory = (req: Request, res: Response) => {
-  const {
-    name,
+  const { name, description, image, parentCategory } = req.body;
+
+  Category.create({
+    name: name.trim(),
     description,
     image,
-    parentCategory,
-  } = req.body;
-
-
-  Category.findOne({ name: name.trim() })
-    .then((existingCategory) => {
-      if (existingCategory) {
-        res.status(409).json({
-          success: false,
-          message: "Category already exists",
-        });
-
-        return null;
-      }
-
-      if (parentCategory) {
-        return Category.findById(parentCategory);
-      }
-
-      return null;
-    })
-    .then((parent) => {
-      if (parentCategory && parent === null) {
-        res.status(404).json({
-          success: false,
-          message: "Parent category not found",
-        });
-
-        return null;
-      }
-
-      return Category.create({
-        name: name.trim(),
-        description,
-        image,
-        parentCategory: parentCategory || null,
-      });
-    })
+    parentCategory: parentCategory || null,
+  })
     .then((category) => {
-      if (!category) {
-        return;
-      }
-
       res.status(201).json({
         success: true,
         message: "Category created successfully",
@@ -68,16 +30,11 @@ export const createCategory = (req: Request, res: Response) => {
       });
     });
 };
-
-
 // =========================
 // GET ALL CATEGORIES
 // =========================
 
-export const getAllCategories = (
-  _req: Request,
-  res: Response
-) => {
+export const getAllCategories = (_req: Request, res: Response) => {
   Category.find()
     .populate("parentCategory", "name")
     .sort({ createdAt: -1 })
@@ -98,15 +55,11 @@ export const getAllCategories = (
     });
 };
 
-
 // =========================
 // GET CATEGORY BY ID
 // =========================
 
-export const getCategoryById = (
-  req: Request,
-  res: Response
-) => {
+export const getCategoryById = (req: Request, res: Response) => {
   const { id } = req.params;
 
   Category.findById(id)
@@ -136,15 +89,11 @@ export const getCategoryById = (
     });
 };
 
-
 // =========================
 // UPDATE CATEGORY
 // =========================
 
-export const updateCategory = (
-  req: Request,
-  res: Response
-) => {
+export const updateCategory = (req: Request, res: Response) => {
   const { id } = req.params;
 
   const {
@@ -166,77 +115,27 @@ export const updateCategory = (
         return null;
       }
 
-      // Check duplicate category name
+      // Update name
       if (name !== undefined) {
-        return Category.findOne({
-          name: name.trim(),
-          _id: { $ne: id },
-        }).then((existingCategory) => {
-          if (existingCategory) {
-            res.status(409).json({
-              success: false,
-              message: "Category name already exists",
-            });
-
-            return null;
-          }
-
-          category.name = name.trim();
-
-          if (description !== undefined) {
-            category.description = description;
-          }
-
-          if (image !== undefined) {
-            category.image = image;
-          }
-
-          if (parentCategory !== undefined) {
-            if (parentCategory === id) {
-              res.status(400).json({
-                success: false,
-                message:
-                  "A category cannot be its own parent",
-              });
-
-              return null;
-            }
-
-            category.parentCategory =
-              parentCategory || null;
-          }
-
-          if (isActive !== undefined) {
-            category.isActive = isActive;
-          }
-
-          return category.save();
-        });
+        category.name = name.trim();
       }
 
+      // Update description
       if (description !== undefined) {
         category.description = description;
       }
 
+      // Update image
       if (image !== undefined) {
         category.image = image;
       }
 
+      // Update parent category
       if (parentCategory !== undefined) {
-        if (parentCategory === id) {
-          res.status(400).json({
-            success: false,
-            message:
-              "A category cannot be its own parent",
-          });
-
-          return null;
-        }
-
-        category.parentCategory =
-          parentCategory || null;
+        category.parentCategory = parentCategory || null;
       }
 
+      // Update active status
       if (isActive !== undefined) {
         category.isActive = isActive;
       }
@@ -263,16 +162,11 @@ export const updateCategory = (
       });
     });
 };
-
-
 // =========================
 // DELETE CATEGORY
 // =========================
 
-export const deleteCategory = (
-  req: Request,
-  res: Response
-) => {
+export const deleteCategory = (req: Request, res: Response) => {
   const { id } = req.params;
 
   Category.findById(id)
@@ -298,8 +192,7 @@ export const deleteCategory = (
       if (subcategories.length > 0) {
         res.status(400).json({
           success: false,
-          message:
-            "Cannot delete category because it has subcategories",
+          message: "Cannot delete category because it has subcategories",
         });
 
         return null;

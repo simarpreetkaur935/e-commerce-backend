@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
-import Category from "../Model/Category.model";
+
 
 // =========================
 // CREATE PRODUCT
@@ -26,65 +26,25 @@ export const createProduct = (req: Request, res: Response) => {
     isFeatured,
   } = req.body;
 
-  if (!name || !description || !category || !price || !sku) {
-    res.status(400).json({
-      success: false,
-      message:
-        "Name, description, category, price and SKU are required",
-    });
-
-    return;
-  }
-
-  // Check if SKU already exists
-  Product.findOne({ sku: sku.trim() })
-    .then((existingProduct) => {
-      if (existingProduct) {
-        res.status(409).json({
-          success: false,
-          message: "Product with this SKU already exists",
-        });
-
-        return null;
-      }
-
-      // Check category
-      return Category.findById(category);
-    })
-    .then((categoryData) => {
-      if (!categoryData) {
-        res.status(404).json({
-          success: false,
-          message: "Category not found",
-        });
-
-        return null;
-      }
-
-      return Product.create({
-        name: name.trim(),
-        description: description.trim(),
-        brand,
-        category,
-        images: images || [],
-        price,
-        discountPrice,
-        tax,
-        stock: stock || 0,
-        sku: sku.trim(),
-        lowStockThreshold: lowStockThreshold || 5,
-        specifications: specifications || {},
-        tags: tags || [],
-        weight,
-        isActive: isActive !== undefined ? isActive : true,
-        isFeatured: isFeatured || false,
-      });
-    })
+  Product.create({
+    name: name.trim(),
+    description: description.trim(),
+    brand,
+    category,
+    images: images || [],
+    price,
+    discountPrice,
+    tax,
+    stock: stock || 0,
+    sku: sku.trim(),
+    lowStockThreshold: lowStockThreshold || 5,
+    specifications: specifications || {},
+    tags: tags || [],
+    weight,
+    isActive: isActive !== undefined ? isActive : true,
+    isFeatured: isFeatured || false,
+  })
     .then((product) => {
-      if (!product) {
-        return;
-      }
-
       res.status(201).json({
         success: true,
         message: "Product created successfully",
@@ -209,143 +169,82 @@ export const updateProduct = (
         return null;
       }
 
-      // Check duplicate SKU
-      if (sku !== undefined) {
-        return Product.findOne({
-          sku: sku.trim(),
-          _id: { $ne: id },
-        }).then((existingProduct) => {
-          if (existingProduct) {
-            res.status(409).json({
-              success: false,
-              message: "SKU already exists",
-            });
-
-            return null;
-          }
-
-          product.sku = sku.trim();
-
-          if (name !== undefined) {
-            product.name = name.trim();
-          }
-
-          if (description !== undefined) {
-            product.description = description.trim();
-          }
-
-          if (brand !== undefined) {
-            product.brand = brand;
-          }
-
-          if (category !== undefined) {
-            product.category = category;
-          }
-
-          if (images !== undefined) {
-            product.images = images;
-          }
-
-          if (price !== undefined) {
-            product.price = price;
-          }
-
-          if (discountPrice !== undefined) {
-            product.discountPrice = discountPrice;
-          }
-
-          if (tax !== undefined) {
-            product.tax = tax;
-          }
-
-          if (stock !== undefined) {
-            product.stock = stock;
-          }
-
-          if (lowStockThreshold !== undefined) {
-            product.lowStockThreshold = lowStockThreshold;
-          }
-
-          if (specifications !== undefined) {
-            product.specifications = specifications;
-          }
-
-          if (tags !== undefined) {
-            product.tags = tags;
-          }
-
-          if (weight !== undefined) {
-            product.weight = weight;
-          }
-
-          if (isActive !== undefined) {
-            product.isActive = isActive;
-          }
-
-          if (isFeatured !== undefined) {
-            product.isFeatured = isFeatured;
-          }
-
-          return product.save();
-        });
-      }
-
+      // Update name
       if (name !== undefined) {
         product.name = name.trim();
       }
 
+      // Update description
       if (description !== undefined) {
         product.description = description.trim();
       }
 
+      // Update brand
       if (brand !== undefined) {
         product.brand = brand;
       }
 
+      // Update category
       if (category !== undefined) {
         product.category = category;
       }
 
+      // Update images
       if (images !== undefined) {
         product.images = images;
       }
 
+      // Update price
       if (price !== undefined) {
         product.price = price;
       }
 
+      // Update discount price
       if (discountPrice !== undefined) {
         product.discountPrice = discountPrice;
       }
 
+      // Update tax
       if (tax !== undefined) {
         product.tax = tax;
       }
 
+      // Update stock
       if (stock !== undefined) {
         product.stock = stock;
       }
 
+      // Update SKU
+      if (sku !== undefined) {
+        product.sku = sku.trim();
+      }
+
+      // Update low stock threshold
       if (lowStockThreshold !== undefined) {
         product.lowStockThreshold = lowStockThreshold;
       }
 
+      // Update specifications
       if (specifications !== undefined) {
         product.specifications = specifications;
       }
 
+      // Update tags
       if (tags !== undefined) {
         product.tags = tags;
       }
 
+      // Update weight
       if (weight !== undefined) {
         product.weight = weight;
       }
 
+      // Update active status
       if (isActive !== undefined) {
         product.isActive = isActive;
       }
 
+      // Update featured status
       if (isFeatured !== undefined) {
         product.isFeatured = isFeatured;
       }
@@ -372,8 +271,6 @@ export const updateProduct = (
       });
     });
 };
-
-
 // =========================
 // DELETE PRODUCT
 // =========================

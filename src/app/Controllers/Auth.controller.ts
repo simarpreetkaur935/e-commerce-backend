@@ -18,8 +18,6 @@ export const register = async (req: Request, res: Response) => {
       address,
     } = req.body;
 
-    
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -45,9 +43,34 @@ export const register = async (req: Request, res: Response) => {
         address: user.address,
       },
     });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("Register Error:", error);
 
+    // Duplicate email or phone
+    if (error.code === 11000) {
+
+      if (error.keyPattern?.phone) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone number already exists!",
+        });
+      }
+
+      if (error.keyPattern?.email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already exists!",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: "User already exists!",
+      });
+    }
+
+    // Other server errors
     return res.status(500).json({
       success: false,
       message: "Server error",
@@ -80,13 +103,14 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // JWT secrets
-    const jwtSecret = process.env.JWT_SECRET;
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    const jwtSecret = process.env.NODE_APP_JWT_SECRET_KEY;
+    const refreshSecret = process.env.NODE_APP_JWT_SECRET_KEY;
 
     if (!jwtSecret || !refreshSecret) {
+        console.error("JWT secrets are not configured");
       return res.status(500).json({
         success: false,
-        message: "JWT secrets are not configured",
+        message:"Something went wrong. Please try again later.",
       });
     }
 
@@ -181,6 +205,8 @@ export const logout = async (_req:Request, res: Response) => {
     });
   }
 };
+
+
 
 
 // =========================
