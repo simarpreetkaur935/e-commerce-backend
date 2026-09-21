@@ -5,13 +5,15 @@
   "main": "server.ts",
   "scripts": {
     "dev": "nodemon",
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+     "seed": "tsx src/seed/seed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@faker-js/faker": "^10.6.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -35,7 +37,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.20.2",
     "nodemon": "^3.1.14",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }

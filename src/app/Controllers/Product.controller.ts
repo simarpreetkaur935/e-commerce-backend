@@ -71,6 +71,7 @@ export const getAllProducts = (
   res: Response
 ) => {
   Product.find()
+  .limit(10)
     .populate("category", "name")
     .sort({ createdAt: -1 })
     .then((products) => {

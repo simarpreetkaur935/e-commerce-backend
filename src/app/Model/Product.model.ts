@@ -116,7 +116,7 @@ const productSchema = new Schema<IProduct>(
 
     specifications: {
       type: Map,
-      of: String, 
+      of: String,
       default: {},
     },
 
@@ -163,12 +163,9 @@ const productSchema = new Schema<IProduct>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const Product = mongoose.model<IProduct>(
-  "Product",
-  productSchema
-);
+const Product = mongoose.model<IProduct>("Product", productSchema);
 
 export default Product;

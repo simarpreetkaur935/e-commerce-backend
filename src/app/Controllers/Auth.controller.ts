@@ -3,20 +3,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import User from "../Model/User.model";
+import { accessToken, refreshToken } from "../../utils/Token.util";
 
 // =========================
 // REGISTER
 // =========================
 export const register = async (req: Request, res: Response) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      avatar,
-      address,
-    } = req.body;
+    const { name, email, phone, password, avatar, address } = req.body;
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -43,13 +37,11 @@ export const register = async (req: Request, res: Response) => {
         address: user.address,
       },
     });
-
   } catch (error: any) {
     console.error("Register Error:", error);
 
     // Duplicate email or phone
     if (error.code === 11000) {
-
       if (error.keyPattern?.phone) {
         return res.status(400).json({
           success: false,
@@ -78,22 +70,15 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-
 // =========================
 // LOGIN
 // =========================
 export const login = async (req: Request, res: Response) => {
   try {
-       const { password, user } = req.body;
-
-    
-   
+    const { password, user } = req.body;
 
     // Compare password
-    const isPasswordCorrect = await bcrypt.compare(
-      password,
-      user!.password
-    );
+    const isPasswordCorrect = await bcrypt.compare(password, user!.password);
 
     if (!isPasswordCorrect) {
       return res.status(401).json({
@@ -102,46 +87,16 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // JWT secrets
-    const jwtSecret = process.env.NODE_APP_JWT_SECRET_KEY;
-    const refreshSecret = process.env.NODE_APP_JWT_SECRET_KEY;
-
-    if (!jwtSecret || !refreshSecret) {
-        console.error("JWT secrets are not configured");
-      return res.status(500).json({
-        success: false,
-        message:"Something went wrong. Please try again later.",
-      });
-    }
-
-    // Create access token
-    const accessToken = jwt.sign(
-      {
-        userId: user!._id,
-      },
-      jwtSecret,
-      {
-        expiresIn: "15m",
-      }
-    );
-
-    // Create refresh token
-    const refreshToken = jwt.sign(
-      {
-        userId: user!._id,
-      },
-      refreshSecret,
-      {
-        expiresIn: "7d",
-      }
-    );
-
     // Save refresh token
-    user!.refreshToken = refreshToken;
+    user!.refreshToken = refreshToken({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    });
     await user!.save();
 
     // Send refresh token as HTTP-only cookie
-    res.cookie("refreshToken", refreshToken, {
+    res.cookie("refreshToken", user.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
@@ -151,7 +106,11 @@ export const login = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      accessToken,
+      accessToken: accessToken({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      }),
       user: {
         id: user!._id,
         name: user!.name,
@@ -161,7 +120,6 @@ export const login = async (req: Request, res: Response) => {
         address: user!.address,
       },
     });
-
   } catch (error) {
     console.error("Login Error:", error);
 
@@ -175,14 +133,14 @@ export const login = async (req: Request, res: Response) => {
 // =========================
 // LOGOUT
 // =========================
-export const logout = async (_req:Request, res: Response) => {
+export const logout = async (_req: Request, res: Response) => {
   try {
     const refreshToken = _req.cookies?.refreshToken;
 
     if (refreshToken) {
       await User.findOneAndUpdate(
         { refreshToken },
-        { $unset: { refreshToken: 1 } }
+        { $unset: { refreshToken: 1 } },
       );
     }
 
@@ -206,33 +164,21 @@ export const logout = async (_req:Request, res: Response) => {
   }
 };
 
-
-
-
 // =========================
 // FORGOT PASSWORD - GENERATE OTP
 // =========================
-export const forgotPassword = async (
-  req: Request,
-  res: Response
-) => {
+export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { user } = req.body;
 
- 
-
     // Generate 6-digit OTP
-    const otp = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Save OTP
     user!.resetPasswordOtp = otp;
 
     // OTP expires in 10 minutes
-    user!.resetPasswordOtpExpires = new Date(
-      Date.now() + 10 * 60 * 1000
-    );
+    user!.resetPasswordOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await user!.save();
 
@@ -244,7 +190,6 @@ export const forgotPassword = async (
       message: "Email verified. OTP generated successfully",
       otp,
     });
-
   } catch (error) {
     console.error("Forgot Password Error:", error);
 
@@ -255,29 +200,15 @@ export const forgotPassword = async (
   }
 };
 
-
 // =========================
 // RESET PASSWORD WITH OTP
 // =========================
-export const resetPassword = async (
-  req: Request,
-  res: Response
-) => {
+export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const {
-    user,
-    password,
-    } = req.body;
-
-
-
-
+    const { user, password } = req.body;
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(
-      password,
-      10
-    );
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update password
     user!.password = hashedPassword;
@@ -296,7 +227,6 @@ export const resetPassword = async (
       success: true,
       message: "Password reset successfully",
     });
-
   } catch (error) {
     console.error("Reset Password Error:", error);
 
@@ -310,14 +240,11 @@ export const resetPassword = async (
 // =========================
 // REFRESH ACCESS TOKEN
 // =========================
-export const refreshAccessToken = async (
-  req: Request,
-  res: Response
-) => {
+export const refreshAccessToken = async (req: Request, res: Response) => {
   try {
-    const refreshToken = req.cookies?.refreshToken;
+    const currentRefreshToken = req.cookies?.refreshToken;
 
-    if (!refreshToken) {
+    if (!currentRefreshToken) {
       return res.status(401).json({
         success: false,
         message: "Refresh token not found",
@@ -335,17 +262,14 @@ export const refreshAccessToken = async (
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(
-      refreshToken,
-      refreshSecret
-    ) as {
-      userId: string;
+    const decoded = jwt.verify(currentRefreshToken, refreshSecret) as {
+      id: string;
     };
 
     // Check token exists in database
     const user = await User.findOne({
-      _id: decoded.userId,
-      refreshToken,
+      _id: decoded.id,
+      currentRefreshToken,
     });
 
     if (!user) {
@@ -356,15 +280,11 @@ export const refreshAccessToken = async (
     }
 
     // Create new access token
-    const newAccessToken = jwt.sign(
-      {
-        userId: user._id,
-      },
-      jwtSecret,
-      {
-        expiresIn: "15m",
-      }
-    );
+    const newAccessToken = accessToken({
+      id: String(user._id),
+      name: user.name,
+      email: user.email,
+    });
 
     return res.status(200).json({
       success: true,
