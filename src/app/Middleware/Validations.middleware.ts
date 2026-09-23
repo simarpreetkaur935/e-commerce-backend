@@ -2,8 +2,10 @@ import { body, param } from "express-validator";
 import User from "../Model/User.model";
 import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
+import Wishlist from "../Model/wishlist.model";
 
 // ? ********************************************* Registers *********************************************
+
 export const registerValidations = [
   body("name")
     .notEmpty()
@@ -13,18 +15,35 @@ export const registerValidations = [
     .notEmpty()
     .withMessage("Email is required!")
     .custom(async (value) => {
-      const isExist = await User.findOne({ email: value });
+      const isExist = await User.findOne({
+        email: value,
+      });
 
       if (!isExist) {
         return true;
       }
 
-      return Promise.reject("Email already exist. Try again!");
+      return Promise.reject(
+        "Email already exist. Try again!"
+      );
     }),
 
   body("phone")
     .notEmpty()
-    .withMessage("phone is required!"),
+    .withMessage("phone is required!")
+    .custom(async (value) => {
+      const isExist = await User.findOne({
+        phone: value,
+      });
+
+      if (!isExist) {
+        return true;
+      }
+
+      return Promise.reject(
+        "Phone number already exists!"
+      );
+    }),
 
   body("password")
     .notEmpty()
@@ -37,7 +56,9 @@ export const registerValidations = [
       const { password } = req.body;
 
       if (password !== value) {
-        return Promise.reject("Passwords must be same!");
+        return Promise.reject(
+          "Passwords must be same!"
+        );
       }
 
       return true;
@@ -495,6 +516,21 @@ export const productIdValidation = [
     .isMongoId()
     .withMessage("Invalid product ID"),
 ];
+// related product validation
+export const getRelatedProductsValidations = [
+  param("id")
+    .isMongoId()
+    .withMessage("Invalid product ID")
+    .custom(async (value) => {
+      const product = await Product.findById(value);
+
+      if (!product) {
+        return Promise.reject("Product not found");
+      }
+
+      return true;
+    }),
+];
 //update product
 
 
@@ -643,4 +679,113 @@ export const updateProductValidations = [
     .optional()
     .isBoolean()
     .withMessage("isFeatured must be a boolean"),
+];
+///add to wishlist 
+
+
+export const addWishlistValidation = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+
+    .isMongoId()
+    .withMessage("Invalid Product ID")
+
+    .custom(async (productId, { req }) => {
+      // Check product exists
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      // Get logged-in user
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      // Check wishlist
+      const existingWishlist = await Wishlist.findOne({
+        user: userId,
+        product: productId,
+      });
+
+      if (existingWishlist) {
+        throw new Error("Product already exists in wishlist");
+      }
+
+      return true;
+    }),
+];
+//get wishlist validation
+// =========================
+// GET MY WISHLIST
+// =========================
+
+export const getMyWishlistValidations = [
+  body("user").custom(async (_value, { req }) => {
+    const userId = (req as any).user?.id;
+
+    // Check logged-in user
+    if (!userId) {
+      return Promise.reject("Unauthorized");
+    }
+
+    // Check user exists in database
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return Promise.reject("User not found");
+    }
+
+    // Store user in request
+    req.body.user = user;
+
+    return true;
+  }),
+];
+//remove wishlist
+// =========================
+// REMOVE FROM WISHLIST
+// =========================
+
+export const removeWishlistValidation = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+
+    .isMongoId()
+    .withMessage("Invalid Product ID")
+
+    .custom(async (productId, { req }) => {
+      // Check logged-in user
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return Promise.reject("Unauthorized");
+      }
+
+      // Check product exists
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        return Promise.reject("Product not found");
+      }
+
+      // Check product exists in user's wishlist
+      const wishlist = await Wishlist.findOne({
+        user: userId,
+        product: productId,
+      });
+
+      if (!wishlist) {
+        return Promise.reject(
+          "Product not found in wishlist"
+        );
+      }
+
+      return true;
+    }),
 ];
