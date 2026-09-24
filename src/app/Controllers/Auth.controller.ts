@@ -221,9 +221,13 @@ export const resetPassword = async (req: Request, res: Response) => {
 // =========================
 // REFRESH ACCESS TOKEN
 // =========================
-export const refreshAccessToken = async (req: Request, res: Response) => {
+export const refreshAccessToken = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const currentRefreshToken = req.cookies?.refreshToken;
+    const currentRefreshToken =
+      req.cookies?.refreshToken;
 
     if (!currentRefreshToken) {
       return res.status(401).json({
@@ -232,25 +236,28 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       });
     }
 
-    const jwtSecret = process.env.JWT_SECRET;
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    const jwtSecret =
+      process.env.NODE_APP_JWT_SECRET_KEY;
 
-    if (!jwtSecret || !refreshSecret) {
+    if (!jwtSecret) {
       return res.status(500).json({
         success: false,
-        message: "JWT secrets are not configured",
+        message: "JWT secret is not configured",
       });
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(currentRefreshToken, refreshSecret) as {
+    const decoded = jwt.verify(
+      currentRefreshToken,
+      jwtSecret
+    ) as {
       id: string;
     };
 
     // Check token exists in database
     const user = await User.findOne({
       _id: decoded.id,
-      currentRefreshToken,
+      refreshToken: currentRefreshToken,
     });
 
     if (!user) {
@@ -272,11 +279,15 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       accessToken: newAccessToken,
     });
   } catch (error) {
-    console.error("Refresh Token Error:", error);
+    console.error(
+      "Refresh Token Error:",
+      error
+    );
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired refresh token",
+      message:
+        "Invalid or expired refresh token",
     });
   }
 };

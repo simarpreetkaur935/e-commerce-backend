@@ -719,7 +719,6 @@ export const addWishlistValidation = [
       return true;
     }),
 ];
-//get wishlist validation
 // =========================
 // GET MY WISHLIST
 // =========================
@@ -739,9 +738,6 @@ export const getMyWishlistValidations = [
     if (!user) {
       return Promise.reject("User not found");
     }
-
-    // Store user in request
-    req.body.user = user;
 
     return true;
   }),
