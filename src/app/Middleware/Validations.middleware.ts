@@ -3,6 +3,7 @@ import User from "../Model/User.model";
 import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
 import Wishlist from "../Model/wishlist.model";
+import Cart from "../Model/Cart.model";
 
 // ? ********************************************* Registers *********************************************
 
@@ -784,4 +785,235 @@ export const removeWishlistValidation = [
 
       return true;
     }),
+];
+//cart
+//add to cart validation
+// =========================
+// ADD TO CART VALIDATION
+// =========================
+
+export const addToCartValidation = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+
+    .isMongoId()
+    .withMessage("Invalid Product ID")
+
+    .custom(async (productId, { req }) => {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      // Check product
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      // Check product is active
+      if (!product.isActive) {
+        throw new Error("Product is not available");
+      }
+
+      // Check product stock
+      if (product.stock <= 0) {
+        throw new Error("Product is out of stock");
+      }
+
+      // Check requested quantity
+      const quantity = req.body.quantity ?? 1;
+
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        throw new Error(
+          "Quantity must be at least 1"
+        );
+      }
+
+      // Check requested quantity against stock
+      if (quantity > product.stock) {
+        throw new Error(
+          "Requested quantity is greater than available stock"
+        );
+      }
+
+      // Check existing cart item
+      const existingCartItem = await Cart.findOne({
+        user: userId,
+        product: productId,
+      });
+
+      // If product already exists,
+      // check final quantity
+      if (existingCartItem) {
+        const newQuantity =
+          existingCartItem.quantity + quantity;
+
+        if (newQuantity > product.stock) {
+          throw new Error(
+            "Not enough stock available"
+          );
+        }
+      }
+
+      return true;
+    }),
+];
+//get my cart
+// =========================
+// GET MY CART VALIDATION
+// =========================
+
+export const getMyCartValidation = [
+  body().custom(async (_value, { req }) => {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return true;
+  }),
+];
+// =========================
+// UPDATE CART QUANTITY VALIDATION
+// =========================
+
+export const updateCartValidation = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+
+    .isMongoId()
+    .withMessage("Invalid Product ID")
+
+    .custom(async (productId, { req }) => {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      // Check product
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      // Check product availability
+      if (!product.isActive) {
+        throw new Error("Product is not available");
+      }
+
+      // Check product stock
+      if (product.stock <= 0) {
+        throw new Error("Product is out of stock");
+      }
+
+      // Check product exists in user's cart
+      const cartItem = await Cart.findOne({
+        user: userId,
+        product: productId,
+      });
+
+      if (!cartItem) {
+        throw new Error("Product not found in cart");
+      }
+
+      return true;
+    }),
+
+  body("quantity")
+    .notEmpty()
+    .withMessage("Quantity is required")
+
+    .isInt({ min: 1 })
+    .withMessage("Quantity must be at least 1")
+
+    .custom(async (quantity, { req }) => {
+      const productId = req.params?.productId;
+
+      if (!productId) {
+        throw new Error("Product ID is required");
+      }
+
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      if (quantity > product.stock) {
+        throw new Error(
+          "Requested quantity is greater than available stock"
+        );
+      }
+
+      return true;
+    }),
+];
+//remove cart validation
+// =========================
+// REMOVE FROM CART VALIDATION
+// =========================
+
+export const removeFromCartValidation = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+
+    .isMongoId()
+    .withMessage("Invalid Product ID")
+
+    .custom(async (productId, { req }) => {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      const cartItem = await Cart.findOne({
+        user: userId,
+        product: productId,
+      });
+
+      if (!cartItem) {
+        throw new Error("Product not found in cart");
+      }
+
+      return true;
+    }),
+];
+//clear validation
+
+// =========================
+// CLEAR CART VALIDATION
+// =========================
+
+export const clearCartValidation = [
+  body().custom(async (_value, { req }) => {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return true;
+  }),
 ];
