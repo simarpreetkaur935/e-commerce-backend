@@ -64,7 +64,7 @@ export const protect = (
   } catch (error) {
     console.error(
       "Auth Middleware Error:",
-      error
+      error.message
     );
 
     return res.status(401).json({

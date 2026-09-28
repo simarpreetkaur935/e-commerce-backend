@@ -221,6 +221,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 // =========================
 // REFRESH ACCESS TOKEN
 // =========================
+
 export const refreshAccessToken = async (
   req: Request,
   res: Response
@@ -232,7 +233,8 @@ export const refreshAccessToken = async (
     if (!currentRefreshToken) {
       return res.status(401).json({
         success: false,
-        message: "Refresh token not found",
+        message:
+          "Session expired. Please login again.",
       });
     }
 
@@ -261,9 +263,12 @@ export const refreshAccessToken = async (
     });
 
     if (!user) {
+      res.clearCookie("refreshToken");
+
       return res.status(401).json({
         success: false,
-        message: "Invalid refresh token",
+        message:
+          "Session expired. Please login again.",
       });
     }
 
@@ -284,10 +289,13 @@ export const refreshAccessToken = async (
       error
     );
 
+    // Refresh token expired or invalid
+    res.clearCookie("refreshToken");
+
     return res.status(401).json({
       success: false,
       message:
-        "Invalid or expired refresh token",
+        "Session expired. Please login again.",
     });
   }
 };
