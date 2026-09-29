@@ -11,7 +11,16 @@ export const getMyProfile = async (
   res: Response
 ) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as Request & {
+      user?: { id: string };
+    }).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
     const user = await User.findById(userId).select(
       "-password -refreshToken -resetPasswordOtp -resetPasswordOtpExpires"
@@ -37,20 +46,42 @@ export const getMyProfile = async (
     });
   }
 };
-///update profile
+
+// =========================
+// UPDATE MY PROFILE
+// =========================
 
 export const updateMyProfile = async (
   req: Request,
   res: Response
 ) => {
   try {
+    const userId = (req as Request & {
+      user?: { id: string };
+    }).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
     const {
       name,
       phone,
       avatar,
       address,
-      user,
     } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
 
     if (name !== undefined) {
       user.name = name;
@@ -91,18 +122,46 @@ export const updateMyProfile = async (
     });
   }
 };
-//change password
+
+// =========================
+// CHANGE PASSWORD
+// =========================
+
 export const changePassword = async (
   req: Request,
   res: Response
 ) => {
   try {
-    const { currentPassword, newPassword, user } = req.body;
+    const userId = (req as Request & {
+      user?: { id: string };
+    }).user?.id;
 
-    const isPasswordCorrect = await bcrypt.compare(
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const {
       currentPassword,
-      user!.password
-    );
+      newPassword,
+    } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const isPasswordCorrect =
+      await bcrypt.compare(
+        currentPassword,
+        user.password
+      );
 
     if (!isPasswordCorrect) {
       return res.status(400).json({
@@ -111,15 +170,15 @@ export const changePassword = async (
       });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      newPassword,
-      10
-    );
+    const hashedPassword =
+      await bcrypt.hash(newPassword, 10);
 
-    user!.password = hashedPassword;
-    user!.refreshToken = undefined;
+    user.password = hashedPassword;
 
-    await user!.save();
+    // Invalidate refresh token
+    user.refreshToken = undefined;
+
+    await user.save();
 
     return res.status(200).json({
       success: true,
@@ -135,7 +194,6 @@ export const changePassword = async (
   }
 };
 
-
 // =========================
 // DELETE MY ACCOUNT
 // =========================
@@ -145,7 +203,16 @@ export const deleteMyAccount = async (
   res: Response
 ) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as Request & {
+      user?: { id: string };
+    }).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
     const user = await User.findById(userId);
 
@@ -160,7 +227,8 @@ export const deleteMyAccount = async (
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure:
+        process.env.NODE_ENV === "production",
       sameSite: "strict",
     });
 
