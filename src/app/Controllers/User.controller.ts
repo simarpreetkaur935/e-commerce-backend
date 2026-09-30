@@ -146,7 +146,16 @@ export const changePassword = async (
     const {
       currentPassword,
       newPassword,
+      confirmPassword,
     } = req.body;
+
+    // Check if new password and confirm password match
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New passwords do not match",
+      });
+    }
 
     const user = await User.findById(userId);
 
@@ -185,7 +194,10 @@ export const changePassword = async (
       message: "Password changed successfully",
     });
   } catch (error) {
-    console.error("Change Password Error:", error);
+    console.error(
+      "Change Password Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -193,7 +205,6 @@ export const changePassword = async (
     });
   }
 };
-
 // =========================
 // DELETE MY ACCOUNT
 // =========================
