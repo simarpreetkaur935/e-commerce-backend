@@ -48,7 +48,11 @@ export const registerValidations = [
 
   body("password")
     .notEmpty()
-    .withMessage("password is required!"),
+    .withMessage("password is required!")
+     .isLength({ min: 8 })
+  .withMessage(
+    "Password must be at least 8 characters!"
+  ),
 
   body("confirmPassword")
     .notEmpty()
@@ -86,27 +90,32 @@ export const loginValidations = [
 
   body("password").notEmpty().withMessage("Password is required"),
 ];
-//for forget password
+//forgot password
 export const forgotPasswordValidations = [
   body("email")
     .notEmpty()
     .withMessage("Email is required")
+
     .isEmail()
     .withMessage("Enter a valid email")
+
     .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: value });
+      const user = await User.findOne({
+        email: value,
+      });
 
       if (!user) {
-        return Promise.reject("No account found with this email");
+        return Promise.reject(
+          "No account found with this email"
+        );
       }
+
       req.body.user = user;
+
       return true;
     }),
 ];
-// =========================
-// RESET PASSWORD
-// =========================
-
+//reset
 export const resetPasswordValidations = [
   body("email")
     .notEmpty()
@@ -114,11 +123,14 @@ export const resetPasswordValidations = [
     .isEmail()
     .withMessage("Enter a valid email")
     .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: value });
+      const user = await User.findOne({
+        email: value,
+      });
 
       if (!user) {
         return Promise.reject("User not found");
       }
+
       req.body.user = user;
 
       return true;
@@ -127,12 +139,17 @@ export const resetPasswordValidations = [
   body("otp")
     .notEmpty()
     .withMessage("OTP is required")
-    .isLength({ min: 6, max: 6 })
+    .isLength({
+      min: 6,
+      max: 6,
+    })
     .withMessage("OTP must be 6 digits")
     .isNumeric()
-    .withMessage("OTP must contain only numbers")
+    .withMessage(
+      "OTP must contain only numbers"
+    )
     .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: req.body.email });
+      const user = req.body.user;
 
       if (!user) {
         return Promise.reject("User not found");
@@ -143,7 +160,9 @@ export const resetPasswordValidations = [
         !user.resetPasswordOtpExpires ||
         user.resetPasswordOtpExpires < new Date()
       ) {
-        return Promise.reject("Invalid or expired OTP");
+        return Promise.reject(
+          "Invalid or expired OTP"
+        );
       }
 
       return true;
@@ -152,15 +171,25 @@ export const resetPasswordValidations = [
   body("password")
     .notEmpty()
     .withMessage("Password is required")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters"),
+    .isLength({
+      min: 8,
+    })
+    .withMessage(
+      "Password must be at least 8 characters"
+    ),
 
   body("confirmPassword")
     .notEmpty()
-    .withMessage("Confirm password is required")
+    .withMessage(
+      "Confirm password is required"
+    )
     .custom((value, { req }) => {
-      if (value !== req.body.password) {
-        return Promise.reject("Passwords do not match");
+      if (
+        value !== req.body.password
+      ) {
+        return Promise.reject(
+          "Passwords do not match"
+        );
       }
 
       return true;
@@ -1016,4 +1045,63 @@ export const clearCartValidation = [
 
     return true;
   }),
+];
+//verify otp validation
+export const verifyOtpValidations = [
+  body("email")
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please enter a valid email")
+    .custom(async (value) => {
+      const user = await User.findOne({
+        email: value,
+      });
+
+      if (!user) {
+        throw new Error(
+          "Email does not exist"
+        );
+      }
+
+      if (
+        !user.resetPasswordOtp
+      ) {
+        throw new Error(
+          "OTP not found. Please request a new OTP"
+        );
+      }
+
+      if (
+        !user.resetPasswordOtpExpires
+      ) {
+        throw new Error(
+          "OTP expiry not found. Please request a new OTP"
+        );
+      }
+
+      if (
+        new Date() >
+        user.resetPasswordOtpExpires
+      ) {
+        throw new Error(
+          "OTP has expired. Please request a new OTP"
+        );
+      }
+
+      return true;
+    }),
+
+  body("otp")
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isLength({
+      min: 6,
+      max: 6,
+    })
+    .withMessage("OTP must be 6 digits")
+    .isNumeric()
+    .withMessage(
+      "OTP must contain only numbers"
+    ),
 ];

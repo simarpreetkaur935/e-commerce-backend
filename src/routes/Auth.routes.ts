@@ -4,34 +4,95 @@ import {
   register,
   login,
   logout,
-  
+  verifyOtp,
   forgotPassword,
   resetPassword,
   refreshAccessToken,
 } from "../app/Controllers/Auth.controller";
-import { registerValidations } from "../app/Middleware/Validations.middleware";
+
+import {
+  registerValidations,
+  loginValidations,
+  verifyOtpValidations,
+  forgotPasswordValidations,
+  resetPasswordValidations,
+} from "../app/Middleware/Validations.middleware";
+
 import { ErrorsCheck } from "../app/Middleware/ErrorsCheck.middleware";
-import { loginValidations } from "../app/Middleware/Validations.middleware";
 
 const authRoutes = express.Router();
 
-// Register
-authRoutes.post("/register", registerValidations, ErrorsCheck, register);
+// =========================
+// REGISTER
+// =========================
 
-// Login
-authRoutes.post("/login",loginValidations, ErrorsCheck, login);
+authRoutes.post(
+  "/register",
+  registerValidations,
+  ErrorsCheck,
+  register
+);
 
-// Logout
-authRoutes.post("/logout", logout);
+// =========================
+// LOGIN
+// =========================
 
+authRoutes.post(
+  "/login",
+  loginValidations,
+  ErrorsCheck,
+  login
+);
 
-// Forgot password - generate OTP
-authRoutes.post("/forgot-password", forgotPassword);
+// =========================
+// LOGOUT
+// =========================
 
-// Reset password - verify OTP and change password
-authRoutes.post("/reset-password", resetPassword);
+authRoutes.post(
+  "/logout",
+  logout
+);
 
-// Refresh access token
-authRoutes.post("/refresh-token", refreshAccessToken);
+// =========================
+// FORGOT PASSWORD
+// =========================
+
+authRoutes.post(
+  "/forgot-password",
+  forgotPasswordValidations,
+  ErrorsCheck,
+  forgotPassword
+);
+
+// =========================
+// VERIFY OTP
+// =========================
+
+authRoutes.post(
+  "/verify-otp",
+  verifyOtpValidations,
+  ErrorsCheck,
+  verifyOtp
+);
+
+// =========================
+// RESET PASSWORD
+// =========================
+
+authRoutes.post(
+  "/reset-password",
+  resetPasswordValidations,
+  ErrorsCheck,
+  resetPassword
+);
+
+// =========================
+// REFRESH ACCESS TOKEN
+// =========================
+
+authRoutes.post(
+  "/refresh-token",
+  refreshAccessToken
+);
 
 export default authRoutes;

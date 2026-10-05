@@ -1,14 +1,36 @@
-import emailSender from "./mail";
+import fs from "fs";
+import path from "path";
+import Handlebars from "handlebars";
+
+import transporter from "./mail";
 
 import { mailConfig } from "../../config/mail.config";
 
 export const sendEmail = async (
   to: string,
   subject: string,
-  html: string
+  templateName: string,
+  data: Record<string, unknown>
 ) => {
   try {
-    await emailSender.sendMail({
+    const templatePath = path.join(
+      __dirname,
+      "templates",
+      "auth",
+      templateName
+    );
+
+    const templateSource = fs.readFileSync(
+      templatePath,
+      "utf-8"
+    );
+
+    const template =
+      Handlebars.compile(templateSource);
+
+    const html = template(data);
+
+    await transporter.sendMail({
       from: mailConfig.from,
       to,
       subject,

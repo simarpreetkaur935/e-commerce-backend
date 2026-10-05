@@ -1,4 +1,7 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+} from "mongoose";
 
 export interface IUser extends Document {
   name: string;
@@ -15,9 +18,15 @@ export interface IUser extends Document {
     pincode: string;
   };
 
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+
   refreshToken?: string;
   resetPasswordOtp?: string;
-resetPasswordOtpExpires?: Date;
+  resetPasswordOtpExpires?: Date;
 
   isVerified: boolean;
 }
@@ -85,24 +94,39 @@ const userSchema = new Schema<IUser>(
 
       deletedAt: {
         type: Date,
-        default: null
-      }
+        default: null,
+      },
     },
 
+    location: {
+      latitude: {
+        type: Number,
+      },
 
-refreshToken: {
-  type: String,
-  default: null,
-},
-resetPasswordOtp: {
-  type: String,
-  default: null,
-},
+      longitude: {
+        type: Number,
+      },
 
-resetPasswordOtpExpires: {
-  type: Date,
-  default: null,
-},
+      address: {
+        type: String,
+        trim: true,
+      },
+    },
+
+    refreshToken: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordOtp: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordOtpExpires: {
+      type: Date,
+      default: null,
+    },
 
     isVerified: {
       type: Boolean,
@@ -114,6 +138,9 @@ resetPasswordOtpExpires: {
   }
 );
 
-const Auth = mongoose.model<IUser>("User", userSchema);
+const Auth = mongoose.model<IUser>(
+  "User",
+  userSchema
+);
 
 export default Auth;

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 
 import User from "../Model/User.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
+import { sendEmail } from "../../services/mail/mail.service";
 
   export const register = async (
   req: Request,
@@ -145,42 +146,57 @@ export const logout = async (_req: Request, res: Response) => {
   }
 };
 
-// =========================
-// FORGOT PASSWORD - GENERATE OTP
-// =========================
-export const forgotPassword = async (req: Request, res: Response) => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { user } = req.body;
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
 
     // Save OTP
     user!.resetPasswordOtp = otp;
 
     // OTP expires in 10 minutes
-    user!.resetPasswordOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user!.resetPasswordOtpExpires =
+      new Date(
+        Date.now() + 10 * 60 * 1000
+      );
 
     await user!.save();
 
-    // Development only
-    console.log("Password Reset OTP:", otp);
+    // Send OTP to email
+    await sendEmail(
+      user!.email,
+      "Password Reset OTP",
+      "forgot-password.hbs",
+      {
+        name: user!.name,
+        otp,
+        expiryMinutes: 10,
+      }
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Email verified. OTP generated successfully",
-      otp,
+      message: "OTP sent successfully to your email",
     });
   } catch (error) {
-    console.error("Forgot Password Error:", error);
+    console.error(
+      "Forgot Password Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Unable to send OTP",
     });
   }
 };
-
 // =========================
 // RESET PASSWORD WITH OTP
 // =========================
@@ -296,6 +312,48 @@ export const refreshAccessToken = async (
       success: false,
       message:
         "Session expired. Please login again.",
+    });
+  }
+};
+//verify otp
+export const verifyOtp = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({
+      email,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.resetPasswordOtp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (error) {
+    console.error(
+      "Verify OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 };
