@@ -3,7 +3,7 @@ import authRoutes from "./Auth.routes";
 import userRoutes from "./User.routes";
 import categoryRoutes from "./Category.routes";
 import productRoutes from "./Product.routes";
-import wishlistRoutes from "./Wishlist.routes";
+import wishlistRoutes from "./wishlist.routes";
 import cartRoutes from "./Cart.routes";
 const router = express.Router();
 

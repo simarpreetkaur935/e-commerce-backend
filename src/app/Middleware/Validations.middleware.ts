@@ -100,9 +100,7 @@ export const forgotPasswordValidations = [
     .withMessage("Enter a valid email")
 
     .custom(async (value, { req }) => {
-      const user = await User.findOne({
-        email: value,
-      });
+      const user = await User.findOne({ email: value,});
 
       if (!user) {
         return Promise.reject(

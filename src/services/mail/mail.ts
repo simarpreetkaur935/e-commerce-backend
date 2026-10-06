@@ -11,9 +11,6 @@ const transporter = nodemailer.createTransport({
   port: mailConfig.port,
   secure: false,
 
-  // Force IPv4
-  family: 4,
-
   auth: {
     user: mailConfig.username,
     pass: mailConfig.password,

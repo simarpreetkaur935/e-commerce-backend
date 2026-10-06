@@ -146,9 +146,7 @@ export const logout = async (_req: Request, res: Response) => {
   }
 };
 
-export const forgotPassword = async (
-  req: Request,
-  res: Response
+export const forgotPassword = async ( req: Request, res: Response
 ) => {
   try {
     const { user } = req.body;
@@ -198,7 +196,7 @@ export const forgotPassword = async (
   }
 };
 // =========================
-// RESET PASSWORD WITH OTP
+// RESET PASSWORD
 // =========================
 export const resetPassword = async (req: Request, res: Response) => {
   try {
@@ -238,10 +236,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 // REFRESH ACCESS TOKEN
 // =========================
 
-export const refreshAccessToken = async (
-  req: Request,
-  res: Response
-) => {
+export const refreshAccessToken = async ( req: Request, res: Response) => {
   try {
     const currentRefreshToken =
       req.cookies?.refreshToken;
@@ -316,10 +311,7 @@ export const refreshAccessToken = async (
   }
 };
 //verify otp
-export const verifyOtp = async (
-  req: Request,
-  res: Response
-) => {
+export const verifyOtp = async ( req: Request,res: Response) => {
   try {
     const { email, otp } = req.body;
 
