@@ -74,7 +74,19 @@ export const updateMyProfile = async (
       address,
     } = req.body;
 
-    const user = await User.findById(userId);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        name,
+        phone,
+        avatar,
+        address,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -82,24 +94,6 @@ export const updateMyProfile = async (
         message: "User not found",
       });
     }
-
-    if (name !== undefined) {
-      user.name = name;
-    }
-
-    if (phone !== undefined) {
-      user.phone = phone;
-    }
-
-    if (avatar !== undefined) {
-      user.avatar = avatar;
-    }
-
-    if (address !== undefined) {
-      user.address = address;
-    }
-
-    await user.save();
 
     return res.status(200).json({
       success: true,

@@ -13,7 +13,7 @@ const userRoutes = express.Router();
 
 userRoutes.get("/me",  protect, getMyProfile);
 
-userRoutes.put("/me",protect,  updateMyProfile);
+userRoutes.patch("/me",protect,  updateMyProfile);
 
 userRoutes.put("/change-password", protect, changePassword);
 

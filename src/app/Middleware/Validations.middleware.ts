@@ -261,19 +261,7 @@ export const changePasswordValidations = [
       return true;
     }),
 
-  body("user").custom(async (_value, { req }) => {
-    const userId = (req as any).userId;
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return Promise.reject("User not found");
-    }
-
-    req.body.user = user;
-
-    return true;
-  }),
 ];
 //for category controller
 
@@ -285,7 +273,7 @@ export const changePasswordValidations = [
 
 export const createCategoryValidations = [
   body("name")
-    .notEmpty()
+   .notEmpty()
     .withMessage("Category name is required")
     .trim()
     .custom(async (value) => {
