@@ -1,4 +1,7 @@
-import mongoose, { Document, Schema,} from "mongoose";
+import mongoose, {
+  Document,
+  Schema,
+} from "mongoose";
 
 export interface IPayment extends Document {
   order: mongoose.Types.ObjectId;
@@ -17,9 +20,8 @@ export interface IPayment extends Document {
     | "paid"
     | "failed";
 
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
-  razorpaySignature?: string;
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
 }
 
 const paymentSchema =
@@ -64,15 +66,11 @@ const paymentSchema =
         default: "pending",
       },
 
-      razorpayOrderId: {
+      stripeSessionId: {
         type: String,
       },
 
-      razorpayPaymentId: {
-        type: String,
-      },
-
-      razorpaySignature: {
+      stripePaymentIntentId: {
         type: String,
       },
     },

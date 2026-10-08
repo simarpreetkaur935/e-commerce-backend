@@ -6,10 +6,7 @@ import User from "../Model/User.model";
 // GET MY PROFILE
 // =========================
 
-export const getMyProfile = async (
-  req: Request,
-  res: Response
-) => {
+export const getMyProfile = async ( req: Request,res: Response) => {
   try {
     const userId = (req as Request & {
       user?: { id: string };
@@ -51,10 +48,7 @@ export const getMyProfile = async (
 // UPDATE MY PROFILE
 // =========================
 
-export const updateMyProfile = async (
-  req: Request,
-  res: Response
-) => {
+export const updateMyProfile = async (req: Request,res: Response) => {
   try {
     const userId = (req as Request & {
       user?: { id: string };
@@ -67,21 +61,10 @@ export const updateMyProfile = async (
       });
     }
 
-    const {
-      name,
-      phone,
-      avatar,
-      address,
-    } = req.body;
+    const {name, phone,avatar,address,} = req.body;
 
     const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        name,
-        phone,
-        avatar,
-        address,
-      },
+      userId,{name,phone,avatar, address,},
       {
         new: true,
         runValidators: true,
@@ -121,10 +104,7 @@ export const updateMyProfile = async (
 // CHANGE PASSWORD
 // =========================
 
-export const changePassword = async (
-  req: Request,
-  res: Response
-) => {
+export const changePassword = async ( req: Request,res: Response) => {
   try {
     const userId = (req as Request & {
       user?: { id: string };

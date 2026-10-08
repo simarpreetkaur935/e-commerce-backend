@@ -1,7 +1,4 @@
-import {
-  Request,
-  Response,
-} from "express";
+import {Request,Response,} from "express";
 
 import Cart from "../Model/Cart.model";
 import Order from "../Model/Order.model";
@@ -10,10 +7,7 @@ import Order from "../Model/Order.model";
 // CREATE ORDER
 // =========================
 
-export const createOrder = async (
-  req: Request,
-  res: Response
-) => {
+export const createOrder = async (req: Request,res: Response) => {
   try {
     const userId = (
       req as Request & {

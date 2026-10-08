@@ -38,3 +38,15 @@ export const createPaymentSession = async (
 
   return session;
 };
+
+
+export const getPaymentSession = async (
+  sessionId: string
+): Promise<Stripe.Checkout.Session> => {
+  const session =
+    await stripe.checkout.sessions.retrieve(
+      sessionId
+    );
+
+  return session;
+};

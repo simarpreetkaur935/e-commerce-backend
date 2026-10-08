@@ -1,15 +1,11 @@
-import {
-  Request,
-  Response,
-} from "express";
-
-import crypto from "crypto";
+import {Request, Response,} from "express";
 
 import Order from "../Model/Order.model";
 import Payment from "../Model/Payment.model";
 
 import {
-  createPaymentSession ,
+  createPaymentSession,
+  getPaymentSession,
 } from "../../services/payment/payment.service";
 
 
@@ -17,15 +13,9 @@ import {
 // CREATE PAYMENT
 // =========================
 
-export const createPayment = async (
-  req: Request,
-  res: Response
-) => {
+export const createPayment = async (req: Request,res: Response) => {
   try {
-    const {
-      orderId,
-      paymentMethod,
-    } = req.body;
+    const {orderId,paymentMethod,} = req.body;
 
     // =========================
     // GET LOGGED-IN USER
@@ -106,13 +96,13 @@ export const createPayment = async (
     }
 
     // =========================
-    // ONLINE PAYMENT
+    // STRIPE ONLINE PAYMENT
     // =========================
 
-    const razorpayOrder =
+    const stripeSession =
       await createPaymentSession(
         amount,
-        `order_${order._id}`
+        order._id.toString()
       );
 
     // =========================
@@ -125,8 +115,7 @@ export const createPayment = async (
       amount,
       paymentMethod,
       paymentStatus: "pending",
-      razorpayOrderId:
-        razorpayOrder.id,
+      stripeSessionId: stripeSession.id,
     });
 
     // =========================
@@ -138,14 +127,17 @@ export const createPayment = async (
 
     await order.save();
 
+    // =========================
+    // SEND STRIPE SESSION
+    // =========================
+
     return res.status(201).json({
       success: true,
-      message: "Payment order created successfully",
+      message: "Stripe checkout session created successfully",
       payment,
-      razorpayOrder: {
-        id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
+      stripeSession: {
+        id: stripeSession.id,
+        url: stripeSession.url,
       },
     });
   } catch (error) {
@@ -166,15 +158,10 @@ export const createPayment = async (
 // VERIFY PAYMENT
 // =========================
 
-export const verifyPayment = async (
-  req: Request,
-  res: Response
-) => {
+export const verifyPayment = async (req: Request,res: Response) => {
   try {
     const {
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
+      stripeSessionId,
     } = req.body;
 
     // =========================
@@ -196,12 +183,14 @@ export const verifyPayment = async (
       });
     }
 
+    
+
     // =========================
     // FIND PAYMENT
     // =========================
 
     const payment = await Payment.findOne({
-      razorpayOrderId,
+      stripeSessionId,
       user: userId,
     });
 
@@ -213,41 +202,21 @@ export const verifyPayment = async (
     }
 
     // =========================
-    // GET RAZORPAY SECRET
+    // GET STRIPE SESSION
     // =========================
 
-    const secret =
-      process.env.RAZORPAY_KEY_SECRET;
-
-    if (!secret) {
-      return res.status(500).json({
-        success: false,
-        message: "Razorpay secret is not configured",
-      });
-    }
+    const stripeSession =
+      await getPaymentSession(
+        stripeSessionId
+      );
 
     // =========================
-    // CREATE SIGNATURE
-    // =========================
-
-    const generatedSignature =
-      crypto
-        .createHmac(
-          "sha256",
-          secret
-        )
-        .update(
-          `${razorpayOrderId}|${razorpayPaymentId}`
-        )
-        .digest("hex");
-
-    // =========================
-    // VERIFY SIGNATURE
+    // CHECK PAYMENT STATUS
     // =========================
 
     if (
-      generatedSignature !==
-      razorpaySignature
+      stripeSession.payment_status !==
+      "paid"
     ) {
       payment.paymentStatus = "failed";
 
@@ -255,21 +224,25 @@ export const verifyPayment = async (
 
       return res.status(400).json({
         success: false,
-        message: "Invalid payment signature",
+        message: "Payment has not been completed",
+        paymentStatus:
+          stripeSession.payment_status,
       });
     }
 
     // =========================
-    // PAYMENT SUCCESS
+    // SAVE STRIPE PAYMENT INTENT
     // =========================
 
+    if (
+      stripeSession.payment_intent &&
+      typeof stripeSession.payment_intent === "string"
+    ) {
+      payment.stripePaymentIntentId =
+        stripeSession.payment_intent;
+    }
+
     payment.paymentStatus = "paid";
-
-    payment.razorpayPaymentId =
-      razorpayPaymentId;
-
-    payment.razorpaySignature =
-      razorpaySignature;
 
     await payment.save();
 
@@ -297,6 +270,10 @@ export const verifyPayment = async (
     order.orderStatus = "confirmed";
 
     await order.save();
+
+    // =========================
+    // SUCCESS RESPONSE
+    // =========================
 
     return res.status(200).json({
       success: true,

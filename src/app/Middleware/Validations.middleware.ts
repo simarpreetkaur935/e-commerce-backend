@@ -4,6 +4,7 @@ import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
 import Wishlist from "../Model/wishlist.model";
 import Cart from "../Model/Cart.model";
+import Payment from "../Model/Payment.model";
 
 // ? ********************************************* Registers *********************************************
 
@@ -1090,4 +1091,133 @@ export const verifyOtpValidations = [
     .withMessage(
       "OTP must contain only numbers"
     ),
+];
+//payment
+
+
+
+// =========================
+// CREATE PAYMENT VALIDATION
+// =========================
+
+export const createPaymentValidations = [
+  body("orderId")
+    .notEmpty()
+    .withMessage("Order ID is required")
+    .isMongoId()
+    .withMessage("Invalid order ID"),
+
+  body("paymentMethod")
+    .notEmpty()
+    .withMessage("Payment method is required")
+    .isIn([
+      "cod",
+      "credit_card",
+      "debit_card",
+      "net_banking",
+      "upi",
+    ])
+    .withMessage("Invalid payment method"),
+];
+
+
+// =========================
+// VERIFY PAYMENT VALIDATION
+// =========================
+
+export const verifyPaymentValidations = [
+  body("stripeSessionId")
+    .notEmpty()
+    .withMessage("Stripe session ID is required")
+    .isString()
+    .withMessage("Stripe session ID must be a string")
+    .trim(),
+];
+//order validation
+
+
+
+// =========================
+// CREATE ORDER VALIDATION
+// =========================
+
+export const createOrderValidations = [
+  body("shippingAddress")
+    .notEmpty()
+    .withMessage("Shipping address is required")
+    .isObject()
+    .withMessage("Shipping address must be an object"),
+
+  body("shippingAddress.street")
+    .notEmpty()
+    .withMessage("Street is required")
+    .isString()
+    .withMessage("Street must be a string")
+    .trim(),
+
+  body("shippingAddress.city")
+    .notEmpty()
+    .withMessage("City is required")
+    .isString()
+    .withMessage("City must be a string")
+    .trim(),
+
+  body("shippingAddress.state")
+    .notEmpty()
+    .withMessage("State is required")
+    .isString()
+    .withMessage("State must be a string")
+    .trim(),
+
+  body("shippingAddress.country")
+    .notEmpty()
+    .withMessage("Country is required")
+    .isString()
+    .withMessage("Country must be a string")
+    .trim(),
+
+  body("shippingAddress.pincode")
+    .notEmpty()
+    .withMessage("Pincode is required")
+    .isString()
+    .withMessage("Pincode must be a string")
+    .trim(),
+
+  body("paymentMethod")
+    .notEmpty()
+    .withMessage("Payment method is required")
+    .isIn([
+      "cod",
+      "credit_card",
+      "debit_card",
+      "net_banking",
+      "upi",
+    ])
+    .withMessage("Invalid payment method"),
+];
+
+
+// =========================
+// GET ORDER BY ID VALIDATION
+// =========================
+
+export const getOrderByIdValidations = [
+  param("orderId")
+    .notEmpty()
+    .withMessage("Order ID is required")
+    .isMongoId()
+    .withMessage("Invalid order ID"),
+];
+
+
+// =========================
+// CANCEL ORDER VALIDATION
+// =========================
+
+export const cancelOrderValidations = [
+  param("orderId")
+    .notEmpty()
+    .withMessage("Order ID is required")
+    .isMongoId()
+    .withMessage("Invalid order ID"),
 ];
