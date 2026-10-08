@@ -183,10 +183,7 @@ export const changePassword = async ( req: Request,res: Response) => {
 // DELETE MY ACCOUNT
 // =========================
 
-export const deleteMyAccount = async (
-  req: Request,
-  res: Response
-) => {
+export const deleteMyAccount = async ( req: Request,res: Response) => {
   try {
     const userId = (req as Request & {
       user?: { id: string };

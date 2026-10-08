@@ -6,10 +6,7 @@ import Category from "../Model/Category.model";
 // CREATE CATEGORY
 // =========================
 
-export const createCategory = async (
-  req: Request,
-  res: Response
-) => {
+export const createCategory = async (req: Request,res: Response) => {
   const { name, description, image, parentCategory } = req.body;
 
   try {
@@ -40,10 +37,7 @@ export const createCategory = async (
 // GET ALL CATEGORIES
 // =========================
 
-export const getAllCategories = async (
-  _req: Request,
-  res: Response
-) => {
+export const getAllCategories = async (_req: Request,res: Response) => {
   try {
     const categories = await Category.find()
       .populate("parentCategory", "name")
@@ -70,10 +64,7 @@ export const getAllCategories = async (
 // GET CATEGORY BY ID
 // =========================
 
-export const getCategoryById = async (
-  req: Request,
-  res: Response
-) => {
+export const getCategoryById = async (req: Request,res: Response) => {
   const { id } = req.params;
 
   try {
@@ -105,14 +96,7 @@ export const getCategoryById = async (
 
 
 
-// =========================
-// UPDATE CATEGORY
-// =========================
-
-export const updateCategory = async (
-  req: Request,
-  res: Response
-) => {
+export const updateCategory = async ( req: Request,res: Response) => {
   const { id } = req.params;
 
   const {
@@ -124,45 +108,29 @@ export const updateCategory = async (
   } = req.body;
 
   try {
-    const category = await Category.findById(id);
+    const updatedCategory = await Category.findOneAndUpdate(
+      { _id: id },
+      {
+        name,
+        description,
+        image,
+        parentCategory,
+        isActive,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-    if (!category) {
-      res.status(404).json({
+    if (!updatedCategory) {
+      return res.status(404).json({
         success: false,
         message: "Category not found",
       });
-
-      return;
     }
 
-    // Update name
-    if (name !== undefined) {
-      category.name = name.trim();
-    }
-
-    // Update description
-    if (description !== undefined) {
-      category.description = description;
-    }
-
-    // Update image
-    if (image !== undefined) {
-      category.image = image;
-    }
-
-    // Update parent category
-    if (parentCategory !== undefined) {
-      category.parentCategory = parentCategory || null;
-    }
-
-    // Update active status
-    if (isActive !== undefined) {
-      category.isActive = isActive;
-    }
-
-    const updatedCategory = await category.save();
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Category updated successfully",
       category: updatedCategory,
@@ -170,13 +138,12 @@ export const updateCategory = async (
   } catch (error) {
     console.error("Update Category Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 };
-
 
 // =========================
 // DELETE CATEGORY
