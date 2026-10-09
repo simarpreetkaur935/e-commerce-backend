@@ -1,3 +1,4 @@
+
 import mongoose, {
   Document,
   Schema,
@@ -49,161 +50,169 @@ export interface IOrder extends Document {
     | "processing"
     | "shipped"
     | "delivered"
-    | "cancelled";
+    | "cancelled"
+    | "returned";
+
+  stockRestored: boolean;
 
   coupon?: mongoose.Types.ObjectId;
 }
 
-const orderSchema =
-  new Schema<IOrder>(
-    {
-      user: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
+const orderSchema = new Schema<IOrder>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
-      items: [
-        {
-          product: {
-            type: Schema.Types.ObjectId,
-            ref: "Product",
-            required: true,
-          },
-
-          name: {
-            type: String,
-            required: true,
-          },
-
-          image: {
-            type: String,
-          },
-
-          quantity: {
-            type: Number,
-            required: true,
-            min: 1,
-          },
-
-          price: {
-            type: Number,
-            required: true,
-            min: 0,
-          },
-
-          total: {
-            type: Number,
-            required: true,
-            min: 0,
-          },
+    items: [
+      {
+        product: {
+          type: Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
         },
-      ],
 
-      shippingAddress: {
-        street: {
+        name: {
           type: String,
           required: true,
         },
 
-        city: {
+        image: {
           type: String,
-          required: true,
         },
 
-        state: {
-          type: String,
+        quantity: {
+          type: Number,
           required: true,
+          min: 1,
         },
 
-        country: {
-          type: String,
+        price: {
+          type: Number,
           required: true,
+          min: 0,
         },
 
-        pincode: {
-          type: String,
+        total: {
+          type: Number,
           required: true,
+          min: 0,
         },
       },
+    ],
 
-      subtotal: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-
-      tax: {
-        type: Number,
-        required: true,
-        default: 0,
-        min: 0,
-      },
-  
-      shippingCharge: {
-        type: Number,
-        required: true,
-        default: 0,
-        min: 0,
-      },
-
-      discount: {
-        type: Number,
-        required: true,
-        default: 0,
-        min: 0,
-      },
-
-      totalAmount: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-
-      paymentMethod: {
+    shippingAddress: {
+      street: {
         type: String,
-        enum: [
-          "cod",
-          "credit_card",
-          "debit_card",
-          "net_banking",
-          "upi",
-        ],
         required: true,
       },
 
-      paymentStatus: {
+      city: {
         type: String,
-        enum: [
-          "pending",
-          "paid",
-          "failed",
-        ],
-        default: "pending",
+        required: true,
       },
 
-      orderStatus: {
+      state: {
         type: String,
-        enum: [
-          "pending",
-          "confirmed",
-          "processing",
-          "shipped",
-          "delivered",
-          "cancelled",
-        ],
-        default: "pending",
+        required: true,
       },
 
-      coupon: {
-        type: Schema.Types.ObjectId,
-        ref: "Coupon",
+      country: {
+        type: String,
+        required: true,
+      },
+
+      pincode: {
+        type: String,
+        required: true,
       },
     },
-    {
-      timestamps: true,
-    }
-  );
+
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    tax: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+
+    shippingCharge: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+
+    discount: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    paymentMethod: {
+      type: String,
+      enum: [
+        "cod",
+        "credit_card",
+        "debit_card",
+        "net_banking",
+        "upi",
+      ],
+      required: true,
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: [
+        "pending",
+        "paid",
+        "failed",
+      ],
+      default: "pending",
+    },
+
+    orderStatus: {
+      type: String,
+      enum: [
+        "pending",
+        "confirmed",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "returned",
+      ],
+      default: "pending",
+    },
+
+    stockRestored: {
+      type: Boolean,
+      default: false,
+    },
+
+    coupon: {
+      type: Schema.Types.ObjectId,
+      ref: "Coupon",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 const Order = mongoose.model<IOrder>(
   "Order",
