@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
 
-
+import mongoose from "mongoose";
 
 // =========================
 // CREATE PRODUCT
@@ -61,57 +61,108 @@ export const createProduct = async (req: Request, res: Response) => {
     });
   }
 };
-
-
-
-
-
-// =========================
-// GET ALL PRODUCTS
-// =========================
-
-export const getAllProducts = async (
-  _req: Request,
-  res: Response
-) => {
+//get all the products
+export const getAllProducts = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
   try {
-    const products = await Product.find()
-      .populate("category", "name")
-      .sort({ createdAt: -1 })
-      .limit(8);
+    // 1. GET LIMIT
+    const limit = 8;
 
-    res.status(200).json({
+    const cursorId = req.query.cursorId as string | undefined;
+
+    // 3. BUILD QUERY
+    const query: any = {};
+
+    const search = (req.query.search as string)?.trim();
+
+    if (search) {
+      query.name = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    if ( cursorId) {
+      if (
+        !cursorId ||
+        !mongoose.isValidObjectId(cursorId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid cursor",
+        });
+      }
+
+      // const createdAt = new Date(cursorCreatedAt);
+      // const id = new mongoose.Types.ObjectId(cursorId);
+      const id = cursorId;
+
+      query.$or = [
+        {
+          // createdAt: createdAt,
+          _id: {  $gt: id},
+        },
+      ];
+    }
+    // 4. FETCH ONE EXTRA PRODUCT
+    session.startTransaction();
+    const totalProducts = await Product.countDocuments();
+    const products = await Product.find(query)
+      .populate("category", "name")
+      .sort({ _id : 1})
+      .limit(limit + 1)
+      .exec();
+    await session.commitTransaction();
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // 5. CHECK IF NEXT PAGE EXISTS
+    const hasNextPage = products.length > limit;
+
+    if (hasNextPage) {
+      products.pop();
+    }
+
+    // 6. CREATE NEXT CURSOR
+    const lastProduct = products[products.length - 1];
+
+    const nextCursor =
+      hasNextPage && lastProduct
+        ? {
+            cursorCreatedAt: lastProduct.createdAt.toISOString(),
+            cursorId: lastProduct._id.toString(),
+          }
+        : null;
+
+    // 7. SEND RESPONSE
+    return res.status(200).json({
       success: true,
-      count: products.length,
+      count: totalProducts,
       products,
+      pagination: {
+        limit,
+        totalPages,
+        hasNextPage,
+        nextCursor,
+      },
     });
   } catch (error) {
     console.error("Get Products Error:", error);
-
-    res.status(500).json({
+    await session.abortTransaction();
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 };
-
-
-
-
-
 // =========================
 // GET PRODUCT BY ID
 // =========================
 
-export const getProductById = async (
-  req: Request,
-  res: Response
-) => {
+export const getProductById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const product = await Product.findById(id)
-      .populate("category", "name");
+    const product = await Product.findById(id).populate("category", "name");
 
     if (!product) {
       res.status(404).json({
@@ -136,16 +187,11 @@ export const getProductById = async (
   }
 };
 
-
-
 // =========================
 // GET RELATED PRODUCTS
 // =========================
 
-export const getRelatedProducts = async (
-  req: Request,
-  res: Response
-) => {
+export const getRelatedProducts = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -181,16 +227,11 @@ export const getRelatedProducts = async (
   }
 };
 
-
-
 // =========================
 // UPDATE PRODUCT
 // =========================
 
-export const updateProduct = async (
-  req: Request,
-  res: Response
-) => {
+export const updateProduct = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const {
@@ -321,16 +362,11 @@ export const updateProduct = async (
   }
 };
 
-
-
 // =========================
 // DELETE PRODUCT
 // =========================
 
-export const deleteProduct = async (
-  req: Request,
-  res: Response
-) => {
+export const deleteProduct = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
@@ -364,4 +400,3 @@ export const deleteProduct = async (
     });
   }
 };
-

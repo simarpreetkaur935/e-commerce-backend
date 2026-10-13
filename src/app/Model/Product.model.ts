@@ -30,6 +30,9 @@ export interface IProduct extends Document {
   // Status
   isActive: boolean;
   isFeatured: boolean;
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const productSchema = new Schema<IProduct>(
@@ -164,7 +167,15 @@ const productSchema = new Schema<IProduct>(
   {
     timestamps: true,
   },
+
+
 );
+// FULL-TEXT SEARCH INDEX
+productSchema.index({
+  name: "text",
+  description: "text",
+});
+
 
 const Product = mongoose.model<IProduct>("Product", productSchema);
 
