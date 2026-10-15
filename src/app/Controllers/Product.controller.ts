@@ -66,13 +66,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
   const session = await mongoose.startSession();
   try {
     // 1. GET LIMIT
-    const limit = 8;
-
+    // 1. GET LIMIT FROM FRONTEND
+    const requestedLimit = Number(req.query.limit) || 8;
+    const limit = Math.min(Math.max(requestedLimit, 1), 50);
     const cursorId = req.query.cursorId as string | undefined;
 
-    // 3. BUILD QUERY
+    // 3. BUILD BASE QUERY
     const query: any = {};
+    const isNewArrivals = req.query.type === "new-arrivals";
 
+    if (isNewArrivals) {
+      Object.assign(query, getNewArrivals());
+    }
     const search = (req.query.search as string)?.trim();
 
     if (search) {
@@ -82,11 +87,8 @@ export const getAllProducts = async (req: Request, res: Response) => {
       };
     }
 
-    if ( cursorId) {
-      if (
-        !cursorId ||
-        !mongoose.isValidObjectId(cursorId)
-      ) {
+    if (cursorId) {
+      if (!cursorId || !mongoose.isValidObjectId(cursorId)) {
         return res.status(400).json({
           success: false,
           message: "Invalid cursor",
@@ -100,20 +102,24 @@ export const getAllProducts = async (req: Request, res: Response) => {
       query.$or = [
         {
           // createdAt: createdAt,
-          _id: {  $gt: id},
+          _id: { $gt: id },
         },
       ];
     }
     // 4. FETCH ONE EXTRA PRODUCT
     session.startTransaction();
-    const totalProducts = await Product.countDocuments();
+    console.log("TYPE:", req.query.type);
+console.log("QUERY:", JSON.stringify(query, null, 2));
+    const totalProducts = await Product.countDocuments(query);
+  
     const products = await Product.find(query)
       .populate("category", "name")
-      .sort({ _id : 1})
+      .sort({ _id: 1 })
       .limit(limit + 1)
       .exec();
     await session.commitTransaction();
     const totalPages = Math.ceil(totalProducts / limit);
+      console.log("PRODUCTS FOUND:", products.length);
 
     // 5. CHECK IF NEXT PAGE EXISTS
     const hasNextPage = products.length > limit;
@@ -399,4 +405,24 @@ export const deleteProduct = async (req: Request, res: Response) => {
       message: "Server error",
     });
   }
+};
+//new arrival
+// New Arrivals filter
+export const getNewArrivals = () => {
+  const now = new Date();
+
+  const startDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+
+  const endDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+  );
+
+  return {
+    createdAt: {
+      $gte: startDate,
+      $lt: endDate,
+    },
+  };
 };
