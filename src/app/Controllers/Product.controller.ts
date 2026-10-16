@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
+import Order from "../Model/Order.model"
 
 import mongoose from "mongoose";
 
@@ -61,23 +62,79 @@ export const createProduct = async (req: Request, res: Response) => {
     });
   }
 };
-//get all the products
+//get all products
+
 export const getAllProducts = async (req: Request, res: Response) => {
-  const session = await mongoose.startSession();
   try {
     // 1. GET LIMIT
-    // 1. GET LIMIT FROM FRONTEND
     const requestedLimit = Number(req.query.limit) || 8;
     const limit = Math.min(Math.max(requestedLimit, 1), 50);
-    const cursorId = req.query.cursorId as string | undefined;
 
-    // 3. BUILD BASE QUERY
+    // 2. HANDLE BEST SELLERS
+    if (req.query.type === "best-sellers") {
+      const bestSellingProducts = await getBestSellers(limit);
+
+      // Fetch product details
+      const productIds = bestSellingProducts.map(
+        (item: any) => item._id
+      );
+
+      const products = await Product.find({
+        _id: { $in: productIds },
+        isActive: true,
+      }).populate("category", "name");
+
+      // Create HashMap using product ID as key
+      const productMap = new Map(
+        products.map((product) => [
+          product._id.toString(),
+          product,
+        ])
+      );
+
+      // Preserve best-seller ranking
+      const productsWithSales = bestSellingProducts
+        .map((item: any) => {
+          const product = productMap.get(item._id.toString());
+
+          if (!product) return null;
+
+          const isOnSale =
+            product.discountPrice != null &&
+            product.discountPrice < product.price;
+
+          return {
+            ...product.toObject(),
+            totalSold: item.totalSold,
+            isOnSale,
+          };
+        })
+        .filter((product) => product !== null);
+
+      return res.status(200).json({
+        success: true,
+        count: productsWithSales.length,
+        products: productsWithSales,
+      });
+    }
+
+    // 3. GET QUERY PARAMETERS
+    const sort = req.query.sort as string | undefined;
+    const cursorId = req.query.cursorId as string | undefined;
+    const cursorPrice = req.query.cursorPrice as string | undefined;
+
+    // 4. BUILD BASE QUERY
     const query: any = {};
     const isNewArrivals = req.query.type === "new-arrivals";
+    const isTodaysDeals = req.query.type === "todays-deals";
 
     if (isNewArrivals) {
       Object.assign(query, getNewArrivals());
     }
+    if (isTodaysDeals) {
+  Object.assign(query, getTodaysDeals());
+}
+
     const search = (req.query.search as string)?.trim();
 
     if (search) {
@@ -87,48 +144,82 @@ export const getAllProducts = async (req: Request, res: Response) => {
       };
     }
 
-    if (cursorId) {
-      if (!cursorId || !mongoose.isValidObjectId(cursorId)) {
+    // 5. VALIDATE SORT
+    if (sort && !["price-asc", "price-desc"].includes(sort)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sort option",
+      });
+    }
+
+    const sortOptions: Record<string, 1 | -1> =
+      sort === "price-asc"
+        ? { price: 1, _id: 1 }
+        : sort === "price-desc"
+          ? { price: -1, _id: -1 }
+          : { _id: 1 };
+
+    // 6. VALIDATE CURSOR
+    if (cursorId && !mongoose.isValidObjectId(cursorId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid cursor ID",
+      });
+    }
+
+    // 7. APPLY CURSOR PAGINATION
+    if (sort === "price-asc" || sort === "price-desc") {
+      if (cursorId && cursorPrice === undefined) {
         return res.status(400).json({
           success: false,
-          message: "Invalid cursor",
+          message: "cursorPrice is required for price sorting",
         });
       }
 
-      // const createdAt = new Date(cursorCreatedAt);
-      // const id = new mongoose.Types.ObjectId(cursorId);
-      const id = cursorId;
+      if (cursorId && cursorPrice !== undefined) {
+        const price = Number(cursorPrice);
 
-      query.$or = [
-        {
-          // createdAt: createdAt,
-          _id: { $gt: id },
-        },
-      ];
+        if (!Number.isFinite(price)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid cursor price",
+          });
+        }
+
+        const id = new mongoose.Types.ObjectId(cursorId);
+        const operator = sort === "price-asc" ? "$gt" : "$lt";
+
+        query.$or = [
+          { price: { [operator]: price } },
+          {
+            price,
+            _id: { [operator]: id },
+          },
+        ];
+      }
+    } else if (cursorId) {
+      query._id = {
+        $gt: new mongoose.Types.ObjectId(cursorId),
+      };
     }
-    // 4. FETCH ONE EXTRA PRODUCT
-    session.startTransaction();
-    console.log("TYPE:", req.query.type);
-console.log("QUERY:", JSON.stringify(query, null, 2));
+
+    // 8. FETCH PRODUCTS
     const totalProducts = await Product.countDocuments(query);
-  
+
     const products = await Product.find(query)
       .populate("category", "name")
-      .sort({ _id: 1 })
+      .sort(sortOptions)
       .limit(limit + 1)
       .exec();
-    await session.commitTransaction();
-    const totalPages = Math.ceil(totalProducts / limit);
-      console.log("PRODUCTS FOUND:", products.length);
 
-    // 5. CHECK IF NEXT PAGE EXISTS
+    // 9. CHECK NEXT PAGE
     const hasNextPage = products.length > limit;
 
     if (hasNextPage) {
       products.pop();
     }
 
-    // 6. CREATE NEXT CURSOR
+    // 10. CREATE NEXT CURSOR
     const lastProduct = products[products.length - 1];
 
     const nextCursor =
@@ -136,30 +227,47 @@ console.log("QUERY:", JSON.stringify(query, null, 2));
         ? {
             cursorCreatedAt: lastProduct.createdAt.toISOString(),
             cursorId: lastProduct._id.toString(),
+            ...(sort === "price-asc" || sort === "price-desc"
+              ? { cursorPrice: lastProduct.price }
+              : {}),
           }
         : null;
 
-    // 7. SEND RESPONSE
+    // 11. ADD SALE FLAG
+    const productsWithSaleStatus = products.map((product) => {
+      const isOnSale =
+        product.discountPrice != null &&
+        product.discountPrice < product.price;
+
+      return {
+        ...product.toObject(),
+        isOnSale,
+      };
+    });
+
+    // 12. SEND NORMAL PRODUCTS RESPONSE
     return res.status(200).json({
       success: true,
       count: totalProducts,
-      products,
+      products: productsWithSaleStatus,
       pagination: {
         limit,
-        totalPages,
+        totalPages: Math.ceil(totalProducts / limit),
         hasNextPage,
         nextCursor,
       },
     });
   } catch (error) {
     console.error("Get Products Error:", error);
-    await session.abortTransaction();
+
     return res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 };
+
+
 // =========================
 // GET PRODUCT BY ID
 // =========================
@@ -407,7 +515,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 //new arrival
-// New Arrivals filter
+// New Arrivals
 export const getNewArrivals = () => {
   const now = new Date();
 
@@ -423,6 +531,48 @@ export const getNewArrivals = () => {
     createdAt: {
       $gte: startDate,
       $lt: endDate,
+    },
+  };
+};
+// best sellers
+export const getBestSellers = async (limit: number) => {
+  return Order.aggregate([
+    {
+      $match: {
+        orderStatus: "delivered",
+      },
+    },
+    {
+      $unwind: "$items",
+    },
+    {
+      $group: {
+        _id: "$items.product",
+        totalSold: {
+          $sum: "$items.quantity",
+        },
+      },
+    },
+    {
+      $sort: {
+        totalSold: -1,
+        _id: 1,
+      },
+    },
+    {
+      $limit: limit,
+    },
+  ]);
+};
+// Today's Deals
+export const getTodaysDeals = () => {
+  return {
+    isActive: true,
+    $expr: {
+      $and: [
+        { $ne: ["$discountPrice", null] },
+        { $lt: ["$discountPrice", "$price"] },
+      ],
     },
   };
 };
