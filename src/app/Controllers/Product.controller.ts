@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
-import Order from "../Model/Order.model"
+import Order from "../Model/Order.model";
 
 import mongoose from "mongoose";
 
@@ -66,100 +66,39 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
-    // 1. GET LIMIT
+    // 3. GET LIMIT
     const requestedLimit = Number(req.query.limit) || 8;
     const limit = Math.min(Math.max(requestedLimit, 1), 50);
-
-    // 2. HANDLE BEST SELLERS
-    if (req.query.type === "best-sellers") {
-      const bestSellingProducts = await getBestSellers(limit);
-
-      // Fetch product details
-      const productIds = bestSellingProducts.map(
-        (item: any) => item._id
-      );
-
-      const products = await Product.find({
-        _id: { $in: productIds },
-        isActive: true,
-      }).populate("category", "name");
-
-      // Create HashMap using product ID as key
-      const productMap = new Map(
-        products.map((product) => [
-          product._id.toString(),
-          product,
-        ])
-      );
-
-      // Preserve best-seller ranking
-      const productsWithSales = bestSellingProducts
-        .map((item: any) => {
-          const product = productMap.get(item._id.toString());
-
-          if (!product) return null;
-
-          const isOnSale =
-            product.discountPrice != null &&
-            product.discountPrice < product.price;
-
-          return {
-            ...product.toObject(),
-            totalSold: item.totalSold,
-            isOnSale,
-          };
-        })
-        .filter((product) => product !== null);
-
-      return res.status(200).json({
-        success: true,
-        count: productsWithSales.length,
-        products: productsWithSales,
-      });
-    }
-
-    // 3. GET QUERY PARAMETERS
+    const type = req.query.type;
+  const sortType =typeof req.query.sortType === "string"? req.query.sortType: "price";
+ //  createdAt
+   const sortOrder = typeof req.query.sortOrder === "string" ? Number(req.query.sortOrder): 1;
+    // 4. GET QUERY PARAMETERS
     const sort = req.query.sort as string | undefined;
     const cursorId = req.query.cursorId as string | undefined;
-    const cursorPrice = req.query.cursorPrice as string | undefined;
-
-    // 4. BUILD BASE QUERY
-    const query: any = {};
-    const isNewArrivals = req.query.type === "new-arrivals";
-    const isTodaysDeals = req.query.type === "todays-deals";
-
-    if (isNewArrivals) {
-      Object.assign(query, getNewArrivals());
-    }
-    if (isTodaysDeals) {
-  Object.assign(query, getTodaysDeals());
-}
-
-    const search = (req.query.search as string)?.trim();
-
+   
+    const search = (req.query.search as string | undefined)?.trim();
+    // 5. BUILD BASE QUERY
+    const query: any = {
+      isActive: true,
+    };
     if (search) {
       query.name = {
         $regex: search,
         $options: "i",
       };
     }
-
-    // 5. VALIDATE SORT
-    if (sort && !["price-asc", "price-desc"].includes(sort)) {
+     // 6. VALIDATE SORT
+    if (sortType === undefined) {
       return res.status(400).json({
         success: false,
         message: "Invalid sort option",
       });
     }
 
-    const sortOptions: Record<string, 1 | -1> =
-      sort === "price-asc"
-        ? { price: 1, _id: 1 }
-        : sort === "price-desc"
-          ? { price: -1, _id: -1 }
-          : { _id: 1 };
-
-    // 6. VALIDATE CURSOR
+    // {sortType}
+    const sortOptions: Record<string, 1 | -1> = { sortType: Number(sortOrder) };
+     // 7. VALIDATE CURSOR ID
     if (cursorId && !mongoose.isValidObjectId(cursorId)) {
       return res.status(400).json({
         success: false,
@@ -167,59 +106,70 @@ export const getAllProducts = async (req: Request, res: Response) => {
       });
     }
 
-    // 7. APPLY CURSOR PAGINATION
-    if (sort === "price-asc" || sort === "price-desc") {
-      if (cursorId && cursorPrice === undefined) {
+    // 1. GET ALL PRODUCT SECTIONS
+    const result = {
+      "best-sellers": await getBestSellers(),
+      "new-arrivals": await getNewArrivals(),
+      "todays-deals": await getTodaysDeals(),
+      offers: await getTodaysDeals(true),
+    };
+
+    if (type !== undefined) {
+      if (typeof type !== "string" || !result.hasOwnProperty(type)) {
         return res.status(400).json({
           success: false,
-          message: "cursorPrice is required for price sorting",
+          message: "Invalid operation/type. Try again!",
         });
       }
 
-      if (cursorId && cursorPrice !== undefined) {
-        const price = Number(cursorPrice);
+      const selectedProducts = result[type as keyof typeof result];
 
-        if (!Number.isFinite(price)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid cursor price",
-          });
-        }
+      return res.status(200).json({
+        success: true,
+        count: selectedProducts.length,
+        products: selectedProducts,
+      });
+    }  
 
-        const id = new mongoose.Types.ObjectId(cursorId);
-        const operator = sort === "price-asc" ? "$gt" : "$lt";
+    // 8. APPLY CURSOR PAGINATION
+if (cursorId) {
+  const id = new mongoose.Types.ObjectId(cursorId);
+  // 1, -1
+  const operator = Number(sortOrder) === 1 ? "$gt" : "$lt";
 
-        query.$or = [
-          { price: { [operator]: price } },
-          {
-            price,
-            _id: { [operator]: id },
-          },
-        ];
-      }
-    } else if (cursorId) {
-      query._id = {
-        $gt: new mongoose.Types.ObjectId(cursorId),
-      };
-    }
+ 
 
-    // 8. FETCH PRODUCTS
+    query.$or = [
+      { price: { [operator]: price } },
+      {
+        price,
+        _id: { [operator]: id },
+      },
+    ];
+  }
+
+ 
+    query._id = { [operator]: id };
+  
+
+    // 9. COUNT PRODUCTS
     const totalProducts = await Product.countDocuments(query);
 
+    // 10. FETCH PRODUCTS
     const products = await Product.find(query)
       .populate("category", "name")
       .sort(sortOptions)
       .limit(limit + 1)
       .exec();
 
-    // 9. CHECK NEXT PAGE
+    // 11. CHECK NEXT PAGE
     const hasNextPage = products.length > limit;
 
     if (hasNextPage) {
       products.pop();
     }
 
-    // 10. CREATE NEXT CURSOR
+    // 12. CREATE NEXT CURSOR
     const lastProduct = products[products.length - 1];
 
     const nextCursor =
@@ -233,11 +183,12 @@ export const getAllProducts = async (req: Request, res: Response) => {
           }
         : null;
 
-    // 11. ADD SALE FLAG
+    // 13. ADD SALE FLAG
     const productsWithSaleStatus = products.map((product) => {
       const isOnSale =
-        product.discountPrice != null &&
-        product.discountPrice < product.price;
+        product.discountPrice != null && product.discountPrice < product.price;
+      const isOffer = product.price % 30  // 30 -> product.discounts.price
+      const isTodayDeal = product.price % 20 // 20 -> product.discounts.price
 
       return {
         ...product.toObject(),
@@ -245,7 +196,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
       };
     });
 
-    // 12. SEND NORMAL PRODUCTS RESPONSE
+    // 14. SEND NORMAL PRODUCTS RESPONSE
     return res.status(200).json({
       success: true,
       count: totalProducts,
@@ -266,7 +217,6 @@ export const getAllProducts = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 // =========================
 // GET PRODUCT BY ID
@@ -515,8 +465,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 //new arrival
-// New Arrivals
-export const getNewArrivals = () => {
+export const getNewArrivals = async () => {
   const now = new Date();
 
   const startDate = new Date(
@@ -528,15 +477,16 @@ export const getNewArrivals = () => {
   );
 
   return {
+    isActive: true,
     createdAt: {
       $gte: startDate,
       $lt: endDate,
     },
   };
 };
-// best sellers
-export const getBestSellers = async (limit: number) => {
-  return Order.aggregate([
+//best sellers
+export const getBestSellers = async (limit: number = 8) => {
+  const bestSellingProducts = await Order.aggregate([
     {
       $match: {
         orderStatus: "delivered",
@@ -563,16 +513,77 @@ export const getBestSellers = async (limit: number) => {
       $limit: limit,
     },
   ]);
+
+}
+//
+// export const getTodaysDeals = async (
+//   isDailyRotation: boolean = false,
+//   limit: number = 8
+// ) => {
+//   const products = await Product.find({
+//     isActive: true,
+//     $expr: {
+//       $and: [
+//         { $ne: ["$discountPrice", null] },
+//         { $lt: ["$discountPrice", "$price"] },
+//       ],
+//     },
+//   }).sort({ _id: 1 });
+
+//   // Apply 24-hour rotation only when requested
+//   if (!isDailyRotation || products.length === 0) {
+//     return products.slice(0, limit);
+//   }
+
+//   const daySlot = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+//   const startIndex = (daySlot * limit) % products.length;
+
+//   const rotatedProducts = [
+//     ...products.slice(startIndex),
+//     ...products.slice(0, startIndex),
+//   ];
+
+//   return rotatedProducts.slice(0, limit);
+// };
+export const getTodaysDeals = async (
+  isOffer: boolean = false,
+  type: string = "todayDeal",
+  limit: number = 8
+) => {
+
+  if (!isOffer) {
+    return {}
+  }
+
+  const discountPercentage = type === "todayDeal" ? 30 : 20;
+
+
+  // const products = await Product.find({
+  //   isActive: true,
+  //   $expr: {
+  //     $and: [
+  //       { $ne: ["$discountPrice", null] },
+  //       { $lt: ["$discountPrice", "$price"] },
+  //     ],
+  //   },
+  // }).sort({ _id: 1 });
+
+  // // Apply 24-hour rotation only when requested
+  // if (!isDailyRotation || products.length === 0) {
+  //   return products.slice(0, limit);
+  // }
+
+  // const daySlot = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  // const startIndex = (daySlot * limit) % products.length;
+
+  // const rotatedProducts = [
+  //   ...products.slice(startIndex),
+  //   ...products.slice(0, startIndex),
+  // ];
+
+  // return rotatedProducts.slice(0, limit);
 };
-// Today's Deals
-export const getTodaysDeals = () => {
-  return {
-    isActive: true,
-    $expr: {
-      $and: [
-        { $ne: ["$discountPrice", null] },
-        { $lt: ["$discountPrice", "$price"] },
-      ],
-    },
-  };
-};
+
+// Offers
+
+
