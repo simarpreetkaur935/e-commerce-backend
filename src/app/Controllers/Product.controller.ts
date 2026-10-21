@@ -111,13 +111,11 @@ export const getBestSellers = async () => {
 
   return bestSellingProducts;
 };
-export const getTodaysDeals = (
-  products: any[],
-  isOffer: boolean = false
-) => {
+//todays deal
+export const getTodaysDeals = (products: any[], isOffer: boolean = false) => {
   const minDiscountPercentage = isOffer ? 20 : 30;
 
-  return products.filter((product) => {
+  const updatedProducts = products.filter((product) => {
     if (!product.isOnSale) return false;
 
     const discountPercentage =
@@ -125,6 +123,10 @@ export const getTodaysDeals = (
 
     return discountPercentage >= minDiscountPercentage;
   });
+
+  console.log(updatedProducts);
+
+  return updatedProducts;
 };
 
 export const getAllProducts = async (req: Request, res: Response) => {
@@ -136,16 +138,11 @@ export const getAllProducts = async (req: Request, res: Response) => {
     const type = req.query.type;
 
     const sortType =
-      typeof req.query.sortType === "string"
-        ? req.query.sortType
-        : "price";
+      typeof req.query.sortType === "string" ? req.query.sortType : "price";
 
     const sortOrder =
-      typeof req.query.sortOrder === "string"
-        ? Number(req.query.sortOrder)
-        : 1;
+      typeof req.query.sortOrder === "string" ? Number(req.query.sortOrder) : 1;
 
-   
     const cursorId = req.query.cursorId as string | undefined;
     const search = (req.query.search as string | undefined)?.trim();
 
@@ -247,17 +244,14 @@ export const getAllProducts = async (req: Request, res: Response) => {
         ? {
             cursorCreatedAt: lastProduct.createdAt.toISOString(),
             cursorId: lastProduct._id.toString(),
-            ...(sortType === "price"
-              ? { cursorPrice: lastProduct.price }
-              : {}),
+            ...(sortType === "price" ? { cursorPrice: lastProduct.price } : {}),
           }
         : null;
 
     // 10. ADD SALE FLAG
     const productsWithSaleStatus = products.map((product) => {
       const isOnSale =
-        product.discountPrice != null &&
-        product.discountPrice < product.price;
+        product.discountPrice != null && product.discountPrice < product.price;
 
       return {
         ...product.toObject(),
@@ -322,7 +316,6 @@ export const getAllProducts = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 // =========================
 // GET PRODUCT BY ID
@@ -602,36 +595,29 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // };
 ///
 
+// const products = await Product.find({
+//   isActive: true,
+//   $expr: {
+//     $and: [
+//       { $ne: ["$discountPrice", null] },
+//       { $lt: ["$discountPrice", "$price"] },
+//     ],
+//   },
+// }).sort({ _id: 1 });
 
+// // Apply 24-hour rotation only when requested
+// if (!isDailyRotation || products.length === 0) {
+//   return products.slice(0, limit);
+// }
 
+// const daySlot = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+// const startIndex = (daySlot * limit) % products.length;
 
+// const rotatedProducts = [
+//   ...products.slice(startIndex),
+//   ...products.slice(0, startIndex),
+// ];
 
-  // const products = await Product.find({
-  //   isActive: true,
-  //   $expr: {
-  //     $and: [
-  //       { $ne: ["$discountPrice", null] },
-  //       { $lt: ["$discountPrice", "$price"] },
-  //     ],
-  //   },
-  // }).sort({ _id: 1 });
-
-  // // Apply 24-hour rotation only when requested
-  // if (!isDailyRotation || products.length === 0) {
-  //   return products.slice(0, limit);
-  // }
-
-  // const daySlot = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
-  // const startIndex = (daySlot * limit) % products.length;
-
-  // const rotatedProducts = [
-  //   ...products.slice(startIndex),
-  //   ...products.slice(0, startIndex),
-  // ];
-
-  // return rotatedProducts.slice(0, limit);
-
+// return rotatedProducts.slice(0, limit);
 
 // Offers
-
-
