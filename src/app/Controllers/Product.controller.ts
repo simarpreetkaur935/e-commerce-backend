@@ -8,27 +8,42 @@ import mongoose from "mongoose";
 // CREATE PRODUCT
 // =========================
 
+// CREATE PRODUCT
 export const createProduct = async (req: Request, res: Response) => {
-  const {
-    name,
-    description,
-    brand,
-    category,
-    images,
-    price,
-    discountPrice,
-    tax,
-    stock,
-    sku,
-    lowStockThreshold,
-    specifications,
-    tags,
-    weight,
-    isActive,
-    isFeatured,
-  } = req.body;
-
   try {
+    const {
+      name,
+      description,
+      brand,
+      category,
+      images,
+      price,
+      discountPrice,
+      tax,
+      stock,
+      sku,
+      lowStockThreshold,
+      specifications,
+      tags,
+      weight,
+      isActive,
+      isFeatured,
+    } = req.body;
+
+    if (
+      !name?.trim() ||
+      !description?.trim() ||
+      !sku?.trim() ||
+      price === undefined ||
+      price === null ||
+      !category
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, description, SKU, price and category are required",
+      });
+    }
+
     const product = await Product.create({
       name: name.trim(),
       description: description.trim(),
@@ -38,17 +53,17 @@ export const createProduct = async (req: Request, res: Response) => {
       price,
       discountPrice,
       tax,
-      stock: stock || 0,
+      stock: stock ?? 0,
       sku: sku.trim(),
-      lowStockThreshold: lowStockThreshold || 5,
+      lowStockThreshold: lowStockThreshold ?? 5,
       specifications: specifications || {},
       tags: tags || [],
       weight,
-      isActive: isActive !== undefined ? isActive : true,
-      isFeatured: isFeatured || false,
+      isActive: isActive ?? true,
+      isFeatured: isFeatured ?? false,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Product created successfully",
       product,
@@ -56,7 +71,7 @@ export const createProduct = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Create Product Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });
@@ -129,37 +144,46 @@ export const getTodaysDeals = (products: any[], isOffer: boolean = false) => {
   return updatedProducts;
 };
 
-export const getAllProducts = async (req: Request, res: Response) => {
+export const getAllProducts = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    // 1. GET LIMIT AND QUERY PARAMETERS
+    // 1. GET QUERY PARAMETERS
     const requestedLimit = Number(req.query.limit) || 8;
-    const limit = Math.min(Math.max(requestedLimit, 1), 50);
+    const limit = Math.min(
+      Math.max(requestedLimit, 1),
+      50
+    );
 
     const type = req.query.type;
 
     const sortType =
-      typeof req.query.sortType === "string" ? req.query.sortType : "price";
+      typeof req.query.sortType === "string"
+        ? req.query.sortType
+        : "price";
 
     const sortOrder =
-      typeof req.query.sortOrder === "string" ? Number(req.query.sortOrder) : 1;
+      typeof req.query.sortOrder === "string"
+        ? Number(req.query.sortOrder)
+        : 1;
 
-    const cursorId = req.query.cursorId as string | undefined;
-    const search = (req.query.search as string | undefined)?.trim();
+    const cursorId =
+      typeof req.query.cursorId === "string"
+        ? req.query.cursorId
+        : undefined;
 
-    // 2. BUILD BASE QUERY
-    const query: any = {
-      isActive: true,
-    };
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
 
-    if (search) {
-      query.name = {
-        $regex: search,
-        $options: "i",
-      };
-    }
-
-    // 3. VALIDATE SORT
-    const allowedSortFields = ["price", "createdAt", "name"];
+    // 2. VALIDATE SORT
+    const allowedSortFields = [
+      "price",
+      "createdAt",
+      "name",
+    ];
 
     if (!allowedSortFields.includes(sortType)) {
       return res.status(400).json({
@@ -179,16 +203,49 @@ export const getAllProducts = async (req: Request, res: Response) => {
 
     const sortOptions: Record<string, 1 | -1> = {
       [sortType]: sortDirection,
+      _id: sortDirection,
     };
 
-    // 4. VALIDATE CURSOR ID
-    if (cursorId && !mongoose.isValidObjectId(cursorId)) {
+    // 3. VALIDATE CURSOR
+    if (
+      cursorId &&
+      !mongoose.isValidObjectId(cursorId)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid cursor ID",
       });
     }
 
+    // 4. BUILD BASE QUERY
+    // 4. BUILD BASE QUERY
+const query: Record<string, any> = {
+  isActive: true,
+};
+
+if (search) {
+  query.name = {
+    $regex: search,
+    $options: "i",
+  };
+}
+
+// FILTER PRODUCTS BY CATEGORY
+const category =
+  typeof req.query.category === "string"
+    ? req.query.category
+    : undefined;
+
+if (category) {
+  if (!mongoose.isValidObjectId(category)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid category ID",
+    });
+  }
+
+  query.category = category;
+}
     // 5. APPLY PRICE CURSOR
     const cursorPrice =
       req.query.cursorPrice !== undefined
@@ -208,85 +265,124 @@ export const getAllProducts = async (req: Request, res: Response) => {
       }
 
       const id = new mongoose.Types.ObjectId(cursorId);
-      const operator = sortOrder === 1 ? "$gt" : "$lt";
+      const operator =
+        sortDirection === 1 ? "$gt" : "$lt";
 
       query.$or = [
-        { price: { [operator]: cursorPrice } },
+        {
+          price: {
+            [operator]: cursorPrice,
+          },
+        },
         {
           price: cursorPrice,
-          _id: { [operator]: id },
+          _id: {
+            [operator]: id,
+          },
         },
       ];
     }
 
-    // 6. COUNT PRODUCTS
-    const totalProducts = await Product.countDocuments(query);
+    // 6. RESULT MAP: SECTION QUERY CONDITIONS
+    const result = {
+      "new-arrivals":await getNewArrivals(),
+    };
 
-    // 7. FETCH PRODUCTS
-    const products = await Product.find(query)
+    const allowedTypes = [
+      "best-sellers",
+      "new-arrivals",
+      "todays-deals",
+      "offers",
+    ];
+
+    if (
+      type !== undefined &&
+      (typeof type !== "string" ||
+        !allowedTypes.includes(type))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid operation/type. Try again!",
+      });
+    }
+
+    // 7. HANDLE BEST-SELLERS SEPARATELY
+    if (type === "best-sellers") {
+      const bestSellers = await getBestSellers();
+
+      return res.status(200).json({
+        success: true,
+        count: bestSellers.length,
+        products: bestSellers,
+      });
+    }
+
+    // 8. APPLY SECTION QUERY
+    const finalQuery: Record<string, any> =
+      type === "new-arrivals"
+        ? {
+            $and: [
+              query,
+              result["new-arrivals"],
+            ],
+          }
+        : query;
+
+    // 9. COUNT MATCHING PRODUCTS
+    const totalProducts =
+      await Product.countDocuments(finalQuery);
+
+    // 10. FETCH MAIN PRODUCT LIST ONCE
+    const fetchedProducts = await Product.find(
+      finalQuery
+    )
       .populate("category", "name")
-      .sort({ ...sortOptions, _id: sortDirection })
+      .sort(sortOptions)
       .limit(limit + 1)
       .exec();
 
-    // 8. CHECK NEXT PAGE
-    const hasNextPage = products.length > limit;
+    // 11. PAGINATION
+    const hasNextPage =
+      fetchedProducts.length > limit;
 
-    if (hasNextPage) {
-      products.pop();
-    }
+    const products = hasNextPage
+      ? fetchedProducts.slice(0, limit)
+      : fetchedProducts;
 
-    // 9. CREATE NEXT CURSOR
-    const lastProduct = products[products.length - 1];
+    const lastProduct =
+      products[products.length - 1];
 
     const nextCursor =
       hasNextPage && lastProduct
         ? {
-            cursorCreatedAt: lastProduct.createdAt.toISOString(),
-            cursorId: lastProduct._id.toString(),
-            ...(sortType === "price" ? { cursorPrice: lastProduct.price } : {}),
+            cursorCreatedAt:
+              lastProduct.createdAt.toISOString(),
+            cursorId:
+              lastProduct._id.toString(),
+            ...(sortType === "price"
+              ? {
+                  cursorPrice: lastProduct.price,
+                }
+              : {}),
           }
         : null;
 
-    // 10. ADD SALE FLAG
-    const productsWithSaleStatus = products.map((product) => {
-      const isOnSale =
-        product.discountPrice != null && product.discountPrice < product.price;
+    // 12. CONVERT DOCUMENTS
+    // The Mongoose virtual adds isOnSale automatically.
+    const productsWithSaleStatus =
+      products.map((product) =>
+        product.toObject()
+      );
 
-      return {
-        ...product.toObject(),
-        isOnSale,
-      };
-    });
-
-    // 11. GET ALL PRODUCT SECTIONS
-    const result = {
-      "best-sellers": await getBestSellers(),
-      "new-arrivals": await getNewArrivals(),
-      "todays-deals": getTodaysDeals(productsWithSaleStatus),
-      offers: getTodaysDeals(productsWithSaleStatus, true),
-    };
-
-    // 12. HANDLE TYPE
-    if (type !== undefined) {
-      if (
-        typeof type !== "string" ||
-        !Object.prototype.hasOwnProperty.call(result, type)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid operation/type. Try again!",
-        });
-      }
-
-      const selectedProducts = result[type as keyof typeof result];
-
-      if (!Array.isArray(selectedProducts)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid product type",
-        });
-      }
+    // 13. HANDLE DEALS AND OFFERS
+    if (
+      type === "todays-deals" ||
+      type === "offers"
+    ) {
+      const selectedProducts = getTodaysDeals(
+        productsWithSaleStatus,
+        type === "offers"
+      );
 
       return res.status(200).json({
         success: true,
@@ -295,14 +391,16 @@ export const getAllProducts = async (req: Request, res: Response) => {
       });
     }
 
-    // 13. SEND NORMAL PRODUCTS RESPONSE
+    // 14. NORMAL PRODUCTS OR NEW ARRIVALS
     return res.status(200).json({
       success: true,
       count: totalProducts,
       products: productsWithSaleStatus,
       pagination: {
         limit,
-        totalPages: Math.ceil(totalProducts / limit),
+        totalPages: Math.ceil(
+          totalProducts / limit
+        ),
         hasNextPage,
         nextCursor,
       },

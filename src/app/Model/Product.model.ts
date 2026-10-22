@@ -1,3 +1,4 @@
+
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface IProduct extends Document {
@@ -30,17 +31,17 @@ export interface IProduct extends Document {
   // Status
   isActive: boolean;
   isFeatured: boolean;
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
+
+  // Virtual property (not stored in MongoDB)
+  isOnSale: boolean;
 }
 
 const productSchema = new Schema<IProduct>(
   {
-    // =========================
-    // BASIC INFORMATION
-    // =========================
-
     name: {
       type: String,
       required: true,
@@ -69,10 +70,7 @@ const productSchema = new Schema<IProduct>(
       default: [],
     },
 
-    // =========================
     // PRICING
-    // =========================
-
     price: {
       type: Number,
       required: true,
@@ -89,10 +87,7 @@ const productSchema = new Schema<IProduct>(
       min: 0,
     },
 
-    // =========================
     // INVENTORY
-    // =========================
-
     stock: {
       type: Number,
       required: true,
@@ -113,10 +108,7 @@ const productSchema = new Schema<IProduct>(
       min: 0,
     },
 
-    // =========================
     // PRODUCT DETAILS
-    // =========================
-
     specifications: {
       type: Map,
       of: String,
@@ -133,10 +125,7 @@ const productSchema = new Schema<IProduct>(
       min: 0,
     },
 
-    // =========================
     // RATINGS
-    // =========================
-
     averageRating: {
       type: Number,
       default: 0,
@@ -147,13 +136,9 @@ const productSchema = new Schema<IProduct>(
     totalReviews: {
       type: Number,
       default: 0,
-      min: 0,
     },
 
-    // =========================
     // STATUS
-    // =========================
-
     isActive: {
       type: Boolean,
       default: true,
@@ -166,17 +151,28 @@ const productSchema = new Schema<IProduct>(
   },
   {
     timestamps: true,
-  },
-
-
+    toObject: { virtuals: true },
+    toJSON: { virtuals: true },
+  }
 );
+
+// VIRTUAL: CALCULATE SALE STATUS
+productSchema.virtual("isOnSale").get(function () {
+  return (
+    this.discountPrice != null &&
+    this.discountPrice < this.price
+  );
+});
+
 // FULL-TEXT SEARCH INDEX
 productSchema.index({
   name: "text",
   description: "text",
 });
 
-
-const Product = mongoose.model<IProduct>("Product", productSchema);
+const Product = mongoose.model<IProduct>(
+  "Product",
+  productSchema
+);
 
 export default Product;
