@@ -5,7 +5,8 @@ import categoryRoutes from "./Category.routes";
 import productRoutes from "./Product.routes";
 import wishlistRoutes from "./wishlist.routes";
 import cartRoutes from "./Cart.routes";
-import paymentRoutes from "./Payment.routes"
+import paymentRoutes from "./Payment.routes";
+import subscriptionRoutes from "./Subscription.routes";
 const router = express.Router();
 
 router.use("/auth", authRoutes)
@@ -21,5 +22,7 @@ router.use("/wishlist", wishlistRoutes)
 router.use("/cart",cartRoutes)
 
 router.use("/payment",paymentRoutes)
+
+router.use("/subscriptions", subscriptionRoutes);
 
 export default router;

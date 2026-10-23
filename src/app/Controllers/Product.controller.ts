@@ -144,34 +144,22 @@ export const getTodaysDeals = (products: any[], isOffer: boolean = false) => {
   return updatedProducts;
 };
 
-export const getAllProducts = async (
-  req: Request,
-  res: Response
-) => {
+export const getAllProducts = async (req: Request, res: Response) => {
   try {
     // 1. GET QUERY PARAMETERS
     const requestedLimit = Number(req.query.limit) || 8;
-    const limit = Math.min(
-      Math.max(requestedLimit, 1),
-      50
-    );
+    const limit = Math.min(Math.max(requestedLimit, 1), 50);
 
     const type = req.query.type;
 
     const sortType =
-      typeof req.query.sortType === "string"
-        ? req.query.sortType
-        : "price";
+      typeof req.query.sortType === "string" ? req.query.sortType : "price";
 
     const sortOrder =
-      typeof req.query.sortOrder === "string"
-        ? Number(req.query.sortOrder)
-        : 1;
+      typeof req.query.sortOrder === "string" ? Number(req.query.sortOrder) : 1;
 
     const cursorId =
-      typeof req.query.cursorId === "string"
-        ? req.query.cursorId
-        : undefined;
+      typeof req.query.cursorId === "string" ? req.query.cursorId : undefined;
 
     const search =
       typeof req.query.search === "string"
@@ -179,11 +167,7 @@ export const getAllProducts = async (
         : undefined;
 
     // 2. VALIDATE SORT
-    const allowedSortFields = [
-      "price",
-      "createdAt",
-      "name",
-    ];
+    const allowedSortFields = ["price", "createdAt", "name"];
 
     if (!allowedSortFields.includes(sortType)) {
       return res.status(400).json({
@@ -207,10 +191,7 @@ export const getAllProducts = async (
     };
 
     // 3. VALIDATE CURSOR
-    if (
-      cursorId &&
-      !mongoose.isValidObjectId(cursorId)
-    ) {
+    if (cursorId && !mongoose.isValidObjectId(cursorId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid cursor ID",
@@ -219,33 +200,31 @@ export const getAllProducts = async (
 
     // 4. BUILD BASE QUERY
     // 4. BUILD BASE QUERY
-const query: Record<string, any> = {
-  isActive: true,
-};
+    const query: Record<string, any> = {
+      isActive: true,
+    };
 
-if (search) {
-  query.name = {
-    $regex: search,
-    $options: "i",
-  };
-}
+    if (search) {
+      query.name = {
+        $regex: search,
+        $options: "i",
+      };
+    }
 
-// FILTER PRODUCTS BY CATEGORY
-const category =
-  typeof req.query.category === "string"
-    ? req.query.category
-    : undefined;
+    // FILTER PRODUCTS BY CATEGORY
+    const category =
+      typeof req.query.category === "string" ? req.query.category : undefined;
 
-if (category) {
-  if (!mongoose.isValidObjectId(category)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid category ID",
-    });
-  }
+    if (category) {
+      if (!mongoose.isValidObjectId(category)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid category ID",
+        });
+      }
 
-  query.category = category;
-}
+      query.category = category;
+    }
     // 5. APPLY PRICE CURSOR
     const cursorPrice =
       req.query.cursorPrice !== undefined
@@ -265,8 +244,7 @@ if (category) {
       }
 
       const id = new mongoose.Types.ObjectId(cursorId);
-      const operator =
-        sortDirection === 1 ? "$gt" : "$lt";
+      const operator = sortDirection === 1 ? "$gt" : "$lt";
 
       query.$or = [
         {
@@ -285,7 +263,7 @@ if (category) {
 
     // 6. RESULT MAP: SECTION QUERY CONDITIONS
     const result = {
-      "new-arrivals":await getNewArrivals(),
+      "new-arrivals": await getNewArrivals(),
     };
 
     const allowedTypes = [
@@ -297,8 +275,7 @@ if (category) {
 
     if (
       type !== undefined &&
-      (typeof type !== "string" ||
-        !allowedTypes.includes(type))
+      (typeof type !== "string" || !allowedTypes.includes(type))
     ) {
       return res.status(400).json({
         success: false,
@@ -321,44 +298,34 @@ if (category) {
     const finalQuery: Record<string, any> =
       type === "new-arrivals"
         ? {
-            $and: [
-              query,
-              result["new-arrivals"],
-            ],
+            $and: [query, result["new-arrivals"]],
           }
         : query;
 
     // 9. COUNT MATCHING PRODUCTS
-    const totalProducts =
-      await Product.countDocuments(finalQuery);
+    const totalProducts = await Product.countDocuments(finalQuery);
 
     // 10. FETCH MAIN PRODUCT LIST ONCE
-    const fetchedProducts = await Product.find(
-      finalQuery
-    )
+    const fetchedProducts = await Product.find(finalQuery)
       .populate("category", "name")
       .sort(sortOptions)
       .limit(limit + 1)
       .exec();
 
     // 11. PAGINATION
-    const hasNextPage =
-      fetchedProducts.length > limit;
+    const hasNextPage = fetchedProducts.length > limit;
 
     const products = hasNextPage
       ? fetchedProducts.slice(0, limit)
       : fetchedProducts;
 
-    const lastProduct =
-      products[products.length - 1];
+    const lastProduct = products[products.length - 1];
 
     const nextCursor =
       hasNextPage && lastProduct
         ? {
-            cursorCreatedAt:
-              lastProduct.createdAt.toISOString(),
-            cursorId:
-              lastProduct._id.toString(),
+            cursorCreatedAt: lastProduct.createdAt.toISOString(),
+            cursorId: lastProduct._id.toString(),
             ...(sortType === "price"
               ? {
                   cursorPrice: lastProduct.price,
@@ -369,19 +336,15 @@ if (category) {
 
     // 12. CONVERT DOCUMENTS
     // The Mongoose virtual adds isOnSale automatically.
-    const productsWithSaleStatus =
-      products.map((product) =>
-        product.toObject()
-      );
+    const productsWithSaleStatus = products.map((product) =>
+      product.toObject(),
+    );
 
     // 13. HANDLE DEALS AND OFFERS
-    if (
-      type === "todays-deals" ||
-      type === "offers"
-    ) {
+    if (type === "todays-deals" || type === "offers") {
       const selectedProducts = getTodaysDeals(
         productsWithSaleStatus,
-        type === "offers"
+        type === "offers",
       );
 
       return res.status(200).json({
@@ -398,9 +361,7 @@ if (category) {
       products: productsWithSaleStatus,
       pagination: {
         limit,
-        totalPages: Math.ceil(
-          totalProducts / limit
-        ),
+        totalPages: Math.ceil(totalProducts / limit),
         hasNextPage,
         nextCursor,
       },

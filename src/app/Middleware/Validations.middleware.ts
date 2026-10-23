@@ -4,7 +4,8 @@ import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
 import Wishlist from "../Model/wishlist.model";
 import Cart from "../Model/Cart.model";
-import Payment from "../Model/Payment.model";
+import Subscription from "../Model/Subscription.model";
+
 
 // ? ********************************************* Registers *********************************************
 
@@ -1220,4 +1221,16 @@ export const cancelOrderValidations = [
     .withMessage("Order ID is required")
     .isMongoId()
     .withMessage("Invalid order ID"),
+];
+//for subscription validation
+
+export const subscriptionValidation = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .bail()
+    .isEmail()
+    .withMessage("Please enter a valid email address")
+    .normalizeEmail(),
 ];
