@@ -131,6 +131,8 @@ export const getTodaysDeals = (products: any[], isOffer: boolean = false) => {
   const minDiscountPercentage = isOffer ? 20 : 30;
 
   const updatedProducts = products.filter((product) => {
+    console.log("product:", product);
+
     if (!product.isOnSale) return false;
 
     const discountPercentage =
@@ -306,7 +308,37 @@ export const getAllProducts = async (req: Request, res: Response) => {
     const totalProducts = await Product.countDocuments(finalQuery);
 
     // 10. FETCH MAIN PRODUCT LIST ONCE
-    const fetchedProducts = await Product.find(finalQuery)
+    // const fetchedProducts = await Product.find(finalQuery)
+    //   .populate("category", "name")
+    //   .sort(sortOptions)
+    //   .limit(limit + 1)
+    //   .exec();
+
+    const isOffer = true
+    const minDiscountPercentage = isOffer ? 20 : 30;
+
+    const fetchedProducts = await Product.find({
+      ...finalQuery,
+      isOnSale: true,
+      price: { $gt: 0 },
+      discountPrice: { $ne: null },
+      $expr: {
+        $gte: [
+          {
+            $multiply: [
+              {
+                $divide: [
+                  { $subtract: ["$price", "$discountPrice"] },
+                  "$price",
+                ],
+              },
+              100,
+            ],
+          },
+          minDiscountPercentage,
+        ],
+      },
+    })
       .populate("category", "name")
       .sort(sortOptions)
       .limit(limit + 1)
@@ -341,18 +373,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
     );
 
     // 13. HANDLE DEALS AND OFFERS
-    if (type === "todays-deals" || type === "offers") {
-      const selectedProducts = getTodaysDeals(
-        productsWithSaleStatus,
-        type === "offers",
-      );
+    // if (type === "todays-deals" || type === "offers") {
+    //   const selectedProducts = getTodaysDeals(
+    //     productsWithSaleStatus,
+    //     type === "offers",
+    //   );
 
-      return res.status(200).json({
-        success: true,
-        count: selectedProducts.length,
-        products: selectedProducts,
-      });
-    }
+    //   return res.status(200).json({
+    //     success: true,
+    //     count: selectedProducts.length,
+    //     products: selectedProducts,
+    //   });
+    // }
 
     // 14. NORMAL PRODUCTS OR NEW ARRIVALS
     return res.status(200).json({
