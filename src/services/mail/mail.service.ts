@@ -13,14 +13,11 @@ export const sendEmail = async (
   data: Record<string, unknown>
 ): Promise<void> => {
   try {
-    // Select the template folder.
-    const templateFolder =
-      templateName === "subscribe.hbs" ? "" : "auth";
 
+    // Build the template path.
     const templatePath = path.join(
       __dirname,
       "templates",
-      templateFolder,
       templateName
     );
 
@@ -30,7 +27,10 @@ export const sendEmail = async (
     }
 
     // Read the template file.
-    const templateSource = fs.readFileSync(templatePath, "utf-8");
+    const templateSource = fs.readFileSync(
+      templatePath,
+      "utf-8"
+    );
 
     // Compile the Handlebars template.
     const template = Handlebars.compile(templateSource);
@@ -46,7 +46,7 @@ export const sendEmail = async (
       html,
     });
 
-    console.log("Email sent successfully");
+    console.log(`Email sent successfully to ${to}`);
   } catch (error) {
     console.error("Send Email Error:", error);
     throw error;
