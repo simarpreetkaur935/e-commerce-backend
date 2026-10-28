@@ -18,11 +18,12 @@ export interface IOffer extends Document {
 const offerSchema = new Schema<IOffer>(
   {
     seller: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
+  type: Schema.Types.ObjectId,
+  ref: "User",
+  required: false,
+  index: true,
+  default: null,
+},
 
     product: {
       type: Schema.Types.ObjectId,
@@ -49,19 +50,22 @@ const offerSchema = new Schema<IOffer>(
       default: "PERCENTAGE",
       required: true,
     },
+discountPercentage: {
+  type: Number,
+  min: 1,
+  max: 100,
+  required: function (this: IOffer): boolean {
+    return this.offerType === "PERCENTAGE";
+  },
+},
 
-    discountPercentage: {
-      type: Number,
-      min: 1,
-      max: 100,
-      required: true,
-    },
-
-    discountAmount: {
-      type: Number,
-      min: 0.01,
-      required: true,
-    },
+discountAmount: {
+  type: Number,
+  min: 0.01,
+  required: function (this: IOffer): boolean {
+    return this.offerType === "FIXED";
+  },
+},
 
     startDate: {
       type: Date,

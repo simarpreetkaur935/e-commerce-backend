@@ -23,29 +23,28 @@ export const createOffer = async (
     } = req.body;
 
     // Validate required fields
-    if (!seller || !product || !title || !startDate || !endDate) {
-      res.status(400).json({
-        success: false,
-        message:
-          "Seller, product, title, start date and end date are required.",
-      });
-      return;
-    }
+  if (!product || !title || !startDate || !endDate) {
+  res.status(400).json({
+    success: false,
+    message: "Product, title, start date and end date are required.",
+  });
+  return;
+}
 
     // Validate seller and product IDs
     if (
-      typeof seller !== "string" ||
-      typeof product !== "string" ||
-      !mongoose.Types.ObjectId.isValid(seller) ||
-      !mongoose.Types.ObjectId.isValid(product)
-    ) {
-      res.status(400).json({
-        success: false,
-        message: "Invalid seller or product ID.",
-      });
-      return;
-    }
-
+  typeof product !== "string" ||
+  !mongoose.Types.ObjectId.isValid(product) ||
+  (seller != null &&
+    (typeof seller !== "string" ||
+      !mongoose.Types.ObjectId.isValid(seller)))
+) {
+  res.status(400).json({
+    success: false,
+    message: "Invalid seller or product ID.",
+  });
+  return;
+}
     // Validate offer type
     if (!["PERCENTAGE", "FIXED"].includes(offerType)) {
       res.status(400).json({
@@ -112,9 +111,9 @@ export const createOffer = async (
     const status =
       start <= now && end > now ? "ACTIVE" : "SCHEDULED";
 
-    const offer = await Offer.create({
-      seller,
-      product,
+   const offer = await Offer.create({
+  ...(seller ? { seller } : {}),
+  product,
       title,
       description,
       offerType,

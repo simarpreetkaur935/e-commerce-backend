@@ -1,4 +1,5 @@
- <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -57,38 +58,33 @@
         </p>
         {{/if}}
 
-        {{#if discountPercentage}}
         <p style="margin:18px 0;font-size:30px;font-weight:bold;color:#b45309;">
           {{discountPercentage}}% OFF
         </p>
-        {{/if}}
 
-        {{#if discountAmount}}
-        <p style="margin:18px 0;font-size:24px;font-weight:bold;color:#b45309;">
-          Save {{currencySymbol}}{{discountAmount}}
-        </p>
-        {{/if}}
-
-        {{#if originalPrice}}
         <p style="margin:8px 0;font-size:14px;color:#64748b;">
-          Original price: {{currencySymbol}}{{originalPrice}}
+          Original price: ₹{{price}}
         </p>
-        {{/if}}
 
-        {{#if discountedPrice}}
-        <p style="margin:8px 0;font-size:20px;font-weight:bold;color:#0f172a;">
-          Offer price: {{currencySymbol}}{{discountedPrice}}
+        <p style="margin:8px 0;font-size:22px;font-weight:bold;color:#0f172a;">
+          Offer price: ₹{{discountPrice}}
+        </p>
+
+        {{#if startDate}}
+        <p style="margin:18px 0 0;font-size:13px;color:#64748b;">
+          Offer starts: {{startDate}}
         </p>
         {{/if}}
 
         {{#if endDate}}
-        <p style="margin:18px 0 0;font-size:13px;color:#64748b;">
+        <p style="margin:8px 0 0;font-size:13px;color:#64748b;">
           Offer ends: {{endDate}}
         </p>
         {{/if}}
       </div>
 
       <!-- CALL TO ACTION -->
+      {{#if productUrl}}
       <div style="margin:28px 0;">
         <a
           href="{{productUrl}}"
@@ -97,6 +93,7 @@
           Shop This Offer
         </a>
       </div>
+      {{/if}}
 
       <p style="font-size:13px;line-height:1.7;color:#64748b;">
         You're receiving this email because you subscribed to MyStore updates.

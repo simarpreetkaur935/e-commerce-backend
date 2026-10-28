@@ -15,11 +15,11 @@ export const sendEmail = async (
   try {
 
     // Build the template path.
-    const templatePath = path.join(
-      __dirname,
-      "templates",
-      templateName
-    );
+ const templatePath = path.resolve(
+  __dirname,
+  "../../templates/emails",
+  templateName
+);
 
     // Check whether the template exists.
     if (!fs.existsSync(templatePath)) {

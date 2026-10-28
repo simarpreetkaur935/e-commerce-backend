@@ -1,3 +1,4 @@
+
 import { faker } from "@faker-js/faker";
 import mongoose from "mongoose";
 
@@ -59,6 +60,11 @@ export const generateProducts = (
 ) => {
   const products = [];
 
+  // Avoid selecting a random category when none exist.
+  if (categories.length === 0) {
+    throw new Error("Cannot generate products: no categories found.");
+  }
+
   for (let i = 0; i < count; i++) {
     // Random category
     const category =
@@ -91,13 +97,13 @@ export const generateProducts = (
         })
       ];
 
-    // Price
+    // Original price
     const price = faker.number.int({
       min: 299,
       max: 99999,
     });
 
-    // Discount
+    // Discount percentage
     const discountPercentage = faker.number.int({
       min: 5,
       max: 40,
@@ -107,13 +113,13 @@ export const generateProducts = (
       price - price * (discountPercentage / 100)
     );
 
-    // Reviews - independent
+    // Reviews
     const totalReviews = faker.number.int({
       min: 0,
       max: 5000,
     });
 
-    // Rating - independent
+    // Rating
     const averageRating = Number(
       faker.number
         .float({
@@ -197,6 +203,9 @@ export const generateProducts = (
       isFeatured: faker.datatype.boolean({
         probability: 0.1,
       }),
+
+      // Sale notification tracking
+      saleNotificationSent: false,
     });
   }
 

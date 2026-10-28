@@ -38,6 +38,7 @@ export interface IProduct extends Document {
 
   // Virtual property (not stored in MongoDB)
   isOnSale: boolean;
+  saleNotificationSent?: boolean;
 }
 
 const productSchema = new Schema<IProduct>(
@@ -137,6 +138,10 @@ const productSchema = new Schema<IProduct>(
       type: Number,
       default: 0,
     },
+    saleNotificationSent: {
+  type: Boolean,
+  default: false,
+},
 
     // STATUS
     isActive: {
