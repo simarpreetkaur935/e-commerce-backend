@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{offerTitle}} - MyStore</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+  <div style="max-width:600px;margin:30px auto;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+
+    <!-- HEADER -->
+    <div style="background-color:#020617;padding:30px 20px;text-align:center;">
+      <h1 style="margin:0;color:#ffffff;font-size:30px;">
+        My<span style="color:#f59e0b;">Store</span>
+      </h1>
+      <p style="margin:12px 0 0;color:#cbd5e1;font-size:14px;">
+        Exclusive offers, just for you!
+      </p>
+    </div>
+
+    <!-- OFFER CONTENT -->
+    <div style="padding:35px 30px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:15px;">🎉</div>
+
+      <h2 style="margin:0 0 18px;font-size:26px;color:#0f172a;">
+        {{offerTitle}}
+      </h2>
+
+      <p style="font-size:16px;line-height:1.7;color:#475569;">
+        Hello{{#if email}}, {{email}}{{/if}}!
+      </p>
+
+      <p style="font-size:15px;line-height:1.8;color:#475569;">
+        Great news! A special offer is now available on MyStore.
+        Don't miss your chance to save on your next purchase.
+      </p>
+
+      <!-- PRODUCT DETAILS -->
+      <div style="margin:28px 0;padding:22px;background-color:#fffbeb;border:1px solid #fde68a;border-radius:10px;">
+
+        {{#if imageUrl}}
+        <img
+          src="{{imageUrl}}"
+          alt="{{productName}}"
+          style="max-width:100%;max-height:240px;object-fit:contain;border-radius:8px;"
+        />
+        {{/if}}
+
+        <h3 style="margin:18px 0 12px;font-size:22px;color:#0f172a;">
+          {{productName}}
+        </h3>
+
+        {{#if description}}
+        <p style="font-size:14px;line-height:1.7;color:#475569;">
+          {{description}}
+        </p>
+        {{/if}}
+
+        <p style="margin:18px 0;font-size:30px;font-weight:bold;color:#b45309;">
+          {{discountPercentage}}% OFF
+        </p>
+
+        <p style="margin:8px 0;font-size:14px;color:#64748b;">
+          Original price: ₹{{price}}
+        </p>
+
+        <p style="margin:8px 0;font-size:22px;font-weight:bold;color:#0f172a;">
+          Offer price: ₹{{discountPrice}}
+        </p>
+
+        {{#if startDate}}
+        <p style="margin:18px 0 0;font-size:13px;color:#64748b;">
+          Offer starts: {{startDate}}
+        </p>
+        {{/if}}
+
+        {{#if endDate}}
+        <p style="margin:8px 0 0;font-size:13px;color:#64748b;">
+          Offer ends: {{endDate}}
+        </p>
+        {{/if}}
+      </div>
+
+      <!-- CALL TO ACTION -->
+      {{#if productUrl}}
+      <div style="margin:28px 0;">
+        <a
+          href="{{productUrl}}"
+          style="display:inline-block;background-color:#f59e0b;color:#020617;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;font-size:15px;"
+        >
+          Shop This Offer
+        </a>
+      </div>
+      {{/if}}
+
+      <p style="font-size:13px;line-height:1.7;color:#64748b;">
+        You're receiving this email because you subscribed to MyStore updates.
+      </p>
+
+      {{#if unsubscribeUrl}}
+      <p style="font-size:13px;color:#64748b;">
+        <a href="{{unsubscribeUrl}}" style="color:#b45309;text-decoration:underline;">
+          Unsubscribe from offer emails
+        </a>
+      </p>
+      {{/if}}
+    </div>
+
+    <!-- FOOTER -->
+    <div style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:22px;text-align:center;">
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b;">
+        Questions? Contact us at
+        <a href="mailto:support@mystore.com" style="color:#b45309;text-decoration:none;">
+          support@mystore.com
+        </a>
+      </p>
+
+      <p style="margin:0;font-size:12px;color:#94a3b8;">
+        &copy; {{year}} MyStore. All rights reserved.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

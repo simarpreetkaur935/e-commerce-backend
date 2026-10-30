@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to MyStore</title>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: Arial, Helvetica, sans-serif; color: #0f172a;">
+  <div style="max-width: 600px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+
+    <!-- HEADER -->
+    <div style="background-color: #020617; padding: 30px 20px; text-align: center;">
+      <h1 style="margin: 0; color: #ffffff; font-size: 30px;">
+        My<span style="color: #f59e0b;">Store</span>
+      </h1>
+
+      <p style="margin: 12px 0 0; color: #cbd5e1; font-size: 14px;">
+        Your shopping journey starts here
+      </p>
+    </div>
+
+    <!-- CONTENT -->
+    <div style="padding: 35px 30px; text-align: center;">
+      <div style="font-size: 48px; margin-bottom: 15px;">
+        🎉
+      </div>
+
+      <h2 style="margin: 0 0 18px; font-size: 26px; color: #0f172a;">
+        Welcome to MyStore!
+      </h2>
+
+      <p style="font-size: 16px; line-height: 1.7; color: #475569;">
+        Hello{{#if email}}, {{email}}{{/if}}!
+      </p>
+
+      <p style="font-size: 15px; line-height: 1.8; color: #475569;">
+        Thank you for subscribing to MyStore updates. You'll receive
+        the latest product news, exciting offers, special deals, and
+        shopping updates in your inbox.
+      </p>
+
+      <div style="margin: 28px 0;">
+        <a
+          href="{{storeUrl}}"
+          style="display: inline-block; background-color: #f59e0b; color: #020617; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 15px;"
+        >
+          Explore MyStore
+        </a>
+      </div>
+
+      <p style="font-size: 13px; line-height: 1.7; color: #64748b;">
+        If you didn't subscribe to these updates, you can safely ignore
+        this email. If you received it unexpectedly, please contact our
+        support team.
+      </p>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 22px; text-align: center;">
+      <p style="margin: 0 0 8px; font-size: 13px; color: #64748b;">
+        Questions? Contact us at
+        <a href="mailto:support@mystore.com" style="color: #b45309; text-decoration: none;">
+          support@mystore.com
+        </a>
+      </p>
+
+      <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+        &copy; {{year}} MyStore. All rights reserved.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>
