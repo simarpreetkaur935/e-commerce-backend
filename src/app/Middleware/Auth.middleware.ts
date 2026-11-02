@@ -61,16 +61,15 @@ export const protect = (
 
     // Move to controller
     next();
-  } catch (error) {
-    console.error(
-      "Auth Middleware Error:",
-      error.message
-    );
+  }catch (error) {
+  console.error(
+    "Auth Middleware Error:",
+    error instanceof Error ? error.message : error
+  );
 
-    return res.status(401).json({
-      success: false,
-      message:
-        "Invalid or expired access token",
-    });
-  }
+  return res.status(401).json({
+    success: false,
+    message: "Invalid or expired access token",
+  });
+}
 };

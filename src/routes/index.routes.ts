@@ -8,6 +8,7 @@ import cartRoutes from "./Cart.routes";
 import paymentRoutes from "./Payment.routes";
 import subscriptionRoutes from "./Subscription.routes";
 import offersRoutes from  "./Offers.routes";
+import addressRoutes from "./Address.routes"
 const router = express.Router();
 
 router.use("/auth", authRoutes)
@@ -26,6 +27,8 @@ router.use("/payment",paymentRoutes)
 
 router.use("/subscriptions", subscriptionRoutes);
 
-router.use("/offer", offersRoutes)
+router.use("/offer", offersRoutes);
+
+router.use("/addresses", addressRoutes);
 
 export default router;
