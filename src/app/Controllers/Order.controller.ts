@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import Cart from "../Model/Cart.model";
 import Order from "../Model/Order.model";
 import Product from "../Model/Product.model";
+import calculateOrderPrice from "../../utils/calculateOrderPrice";
 
 // =========================
 // HELPER: CREATE ERROR
@@ -41,6 +42,21 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
+    const allowedPaymentMethods = [
+      "cod",
+      "credit_card",
+      "debit_card",
+      "net_banking",
+      "upi",
+    ];
+
+    if (!allowedPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method",
+      });
+    }
+
     let createdOrder: any;
 
     await session.withTransaction(async () => {
@@ -53,12 +69,9 @@ export const createOrder = async (req: Request, res: Response) => {
         throw createError("Your cart is empty", 400);
       }
 
-      const orderItems = [];
-
-      // CHECK STOCK AND DECREASE IT
+      // VALIDATE PRODUCTS AND QUANTITIES
       for (const cartItem of cartItems) {
         const product: any = cartItem.product;
-        const quantity = cartItem.quantity;
 
         if (!product || !product.isActive) {
           throw createError(
@@ -67,9 +80,32 @@ export const createOrder = async (req: Request, res: Response) => {
           );
         }
 
-        if (!Number.isInteger(quantity) || quantity < 1) {
+        if (
+          !Number.isInteger(cartItem.quantity) ||
+          cartItem.quantity < 1
+        ) {
           throw createError("Invalid product quantity", 400);
         }
+      }
+
+      // CALCULATE ORDER PRICE
+      const calculationPaymentMethod =
+        paymentMethod === "cod" ? "cod" : "stripe";
+
+      const priceDetails = calculateOrderPrice(
+        cartItems.map((item: any) => ({
+          product: item.product,
+          quantity: item.quantity,
+        })),
+        calculationPaymentMethod
+      );
+
+      const orderItems = [];
+
+      // CHECK STOCK AND DECREASE IT
+      for (const cartItem of cartItems) {
+        const product: any = cartItem.product;
+        const quantity = cartItem.quantity;
 
         const updatedProduct = await Product.findOneAndUpdate(
           {
@@ -93,7 +129,17 @@ export const createOrder = async (req: Request, res: Response) => {
           );
         }
 
-        const price = product.discountPrice ?? product.price;
+        // USE DISCOUNT PRICE ONLY IF VALID
+        const hasValidDiscount =
+          product.discountPrice != null &&
+          Number.isFinite(product.discountPrice) &&
+          product.discountPrice >= 0 &&
+          product.discountPrice < product.price;
+
+        const price = hasValidDiscount
+          ? product.discountPrice
+          : product.price;
+
         const total = price * quantity;
 
         orderItems.push({
@@ -106,17 +152,6 @@ export const createOrder = async (req: Request, res: Response) => {
         });
       }
 
-      // CALCULATE TOTAL
-      const subtotal = orderItems.reduce(
-        (sum, item) => sum + item.total,
-        0
-      );
-
-      const tax = 0;
-      const shippingCharge = 0;
-      const discount = 0;
-      const totalAmount = subtotal + tax + shippingCharge - discount;
-
       // CREATE ORDER
       const orders = await Order.create(
         [
@@ -124,11 +159,13 @@ export const createOrder = async (req: Request, res: Response) => {
             user: userId,
             items: orderItems,
             shippingAddress,
-            subtotal,
-            tax,
-            shippingCharge,
-            discount,
-            totalAmount,
+
+            subtotal: priceDetails.subtotal,
+            tax: priceDetails.tax,
+            shippingCharge: priceDetails.shippingCharge,
+            discount: priceDetails.discount,
+            totalAmount: priceDetails.totalAmount,
+
             paymentMethod,
             paymentStatus: "pending",
             orderStatus: "pending",
