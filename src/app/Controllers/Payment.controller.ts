@@ -9,8 +9,8 @@ import Cart from "../Model/Cart.model";
 import calculateOrderPrice from "../../utils/calculateOrderPrice";
 
 import {
-  createPaymentSession,
-  getPaymentSession,
+  createPaymentIntent,
+  getPaymentIntent,
 } from "../../services/payment/payment.service";
 
 // =================================================
@@ -56,8 +56,6 @@ export const createPayment = async (
       paymentMethod: PaymentMethod;
     };
 
-    // GET LOGGED-IN USER
-
     const userId = getUserId(req);
 
     if (!userId) {
@@ -78,7 +76,7 @@ export const createPayment = async (
 
     // VALIDATE ORDER ID
 
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid order ID",
@@ -108,7 +106,28 @@ export const createPayment = async (
       });
     }
 
-    // GET ACTUAL ORDER AMOUNT
+    // CHECK IF ORDER IS CANCELLED
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot pay for a cancelled order",
+      });
+    }
+
+    // CHECK PAYMENT METHOD MATCHES ORDER
+
+    if (
+      (paymentMethod === "cod" && order.paymentMethod !== "cod") ||
+      (paymentMethod === "stripe" && order.paymentMethod === "cod")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method does not match the order",
+      });
+    }
+
+    // GET ORDER AMOUNT
 
     const amount = order.totalAmount;
 
@@ -124,13 +143,26 @@ export const createPayment = async (
     // =================================================
 
     if (paymentMethod === "cod") {
-      const payment = await Payment.create({
+
+      // CHECK EXISTING COD PAYMENT
+
+      let payment = await Payment.findOne({
         order: order._id,
         user: userId,
-        amount,
         paymentMethod: "cod",
-        paymentStatus: "pending",
       });
+
+      // CREATE PAYMENT ONLY IF IT DOES NOT EXIST
+
+      if (!payment) {
+        payment = await Payment.create({
+          order: order._id,
+          user: userId,
+          amount,
+          paymentMethod: "cod",
+          paymentStatus: "pending",
+        });
+      }
 
       order.paymentMethod = "cod";
       order.paymentStatus = "pending";
@@ -138,7 +170,7 @@ export const createPayment = async (
 
       await order.save();
 
-      return res.status(201).json({
+      return res.status(200).json({
         success: true,
         message: "Cash on Delivery selected",
         payment,
@@ -146,30 +178,83 @@ export const createPayment = async (
     }
 
     // =================================================
-    // STRIPE ONLINE PAYMENT
+    // STRIPE PAYMENT INTENT
     // =================================================
 
-    const stripeSession = await createPaymentSession(
+    // CHECK EXISTING PENDING STRIPE PAYMENT
+
+    let existingPayment = await Payment.findOne({
+      order: order._id,
+      user: userId,
+      paymentMethod: "stripe",
+      paymentStatus: "pending",
+    });
+
+    // REUSE EXISTING PAYMENT INTENT IF IT IS STILL USABLE
+
+    if (existingPayment?.stripePaymentIntentId) {
+      const existingIntent = await getPaymentIntent(
+        existingPayment.stripePaymentIntentId
+      );
+
+      const reusableStatuses = [
+        "requires_payment_method",
+        "requires_confirmation",
+        "requires_action",
+        "processing",
+        "succeeded",
+      ];
+
+      if (reusableStatuses.includes(existingIntent.status)) {
+
+        if (!existingIntent.client_secret) {
+          throw new Error("Stripe client secret is unavailable");
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Existing PaymentIntent retrieved",
+          payment: existingPayment,
+          clientSecret: existingIntent.client_secret,
+          paymentIntentId: existingIntent.id,
+        });
+      }
+    }
+
+    // CREATE NEW PAYMENT INTENT
+
+    const stripePayment = await createPaymentIntent(
       amount,
       order._id.toString()
     );
 
-    if (!stripeSession.url) {
-      throw new Error("Stripe checkout URL was not generated");
+    if (!stripePayment.clientSecret) {
+      throw new Error("Stripe client secret was not generated");
     }
 
-    // SAVE PAYMENT
+    // UPDATE EXISTING PAYMENT OR CREATE A NEW ONE
 
-    const payment = await Payment.create({
-      order: order._id,
-      user: userId,
-      amount,
-      paymentMethod: "stripe",
-      paymentStatus: "pending",
-      stripeSessionId: stripeSession.id,
-    });
+    let payment;
+
+    if (existingPayment) {
+      existingPayment.amount = amount;
+      existingPayment.stripePaymentIntentId =
+        stripePayment.paymentIntentId;
+
+      payment = await existingPayment.save();
+    } else {
+      payment = await Payment.create({
+        order: order._id,
+        user: userId,
+        amount,
+        paymentMethod: "stripe",
+        paymentStatus: "pending",
+        stripePaymentIntentId: stripePayment.paymentIntentId,
+      });
+    }
 
     // UPDATE ORDER
+
     // Order model uses credit_card for Stripe payments.
 
     order.paymentMethod = "credit_card";
@@ -177,16 +262,14 @@ export const createPayment = async (
 
     await order.save();
 
-    // SEND STRIPE SESSION
+    // SEND CLIENT SECRET TO FRONTEND
 
     return res.status(201).json({
       success: true,
-      message: "Stripe checkout session created successfully",
+      message: "PaymentIntent created successfully",
       payment,
-      stripeSession: {
-        id: stripeSession.id,
-        url: stripeSession.url,
-      },
+      clientSecret: stripePayment.clientSecret,
+      paymentIntentId: stripePayment.paymentIntentId,
     });
 
   } catch (error) {
@@ -208,11 +291,9 @@ export const verifyPayment = async (
   res: Response
 ) => {
   try {
-    const { stripeSessionId } = req.body as {
-      stripeSessionId: string;
+    const { paymentIntentId } = req.body as {
+      paymentIntentId: string;
     };
-
-    // GET LOGGED-IN USER
 
     const userId = getUserId(req);
 
@@ -223,20 +304,24 @@ export const verifyPayment = async (
       });
     }
 
-    // VALIDATE SESSION ID
+    // VALIDATE PAYMENT INTENT ID
 
-    if (!stripeSessionId) {
+    if (
+      !paymentIntentId ||
+      typeof paymentIntentId !== "string"
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Stripe session ID is required",
+        message: "PaymentIntent ID is required",
       });
     }
 
     // FIND PAYMENT
 
     const payment = await Payment.findOne({
-      stripeSessionId,
+      stripePaymentIntentId: paymentIntentId,
       user: userId,
+      paymentMethod: "stripe",
     });
 
     if (!payment) {
@@ -256,19 +341,42 @@ export const verifyPayment = async (
       });
     }
 
-    // GET STRIPE SESSION
+    // RETRIEVE PAYMENT INTENT FROM STRIPE
 
-    const stripeSession = await getPaymentSession(
-      stripeSessionId
+    const paymentIntent = await getPaymentIntent(
+      paymentIntentId
     );
+
+    // VERIFY ORDER REFERENCE
+
+    if (
+      paymentIntent.metadata.orderId !== payment.order.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "PaymentIntent does not belong to this order",
+      });
+    }
+
+    // VERIFY AMOUNT AND CURRENCY
+
+    if (
+      paymentIntent.amount !== Math.round(payment.amount * 100) ||
+      paymentIntent.currency !== "inr"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment amount or currency does not match",
+      });
+    }
 
     // VERIFY PAYMENT STATUS
 
-    if (stripeSession.payment_status !== "paid") {
+    if (paymentIntent.status !== "succeeded") {
       return res.status(400).json({
         success: false,
         message: "Payment has not been completed",
-        paymentStatus: stripeSession.payment_status,
+        paymentStatus: paymentIntent.status,
       });
     }
 
@@ -286,14 +394,13 @@ export const verifyPayment = async (
       });
     }
 
-    // SAVE STRIPE PAYMENT INTENT
+    // CHECK ORDER PAYMENT STATUS
 
-    if (
-      stripeSession.payment_intent &&
-      typeof stripeSession.payment_intent === "string"
-    ) {
-      payment.stripePaymentIntentId =
-        stripeSession.payment_intent;
+    if (order.paymentStatus === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Order has already been paid",
+      });
     }
 
     // UPDATE PAYMENT
@@ -337,8 +444,6 @@ export const getPaymentSummary = async (
   res: Response
 ) => {
   try {
-    // GET LOGGED-IN USER
-
     const userId = getUserId(req);
 
     if (!userId) {
@@ -397,8 +502,6 @@ export const getPaymentSummary = async (
       formattedCartItems,
       paymentMethod
     );
-
-    // SEND RESPONSE
 
     return res.status(200).json({
       success: true,

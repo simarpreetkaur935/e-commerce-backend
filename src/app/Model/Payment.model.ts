@@ -1,3 +1,4 @@
+
 import mongoose, {
   Document,
   Schema,
@@ -8,76 +9,56 @@ export interface IPayment extends Document {
   user: mongoose.Types.ObjectId;
   amount: number;
 
-  paymentMethod:
-    | "cod"
-    | "credit_card"
-    | "debit_card"
-    | "net_banking"
-    | "upi";
+  paymentMethod: "cod" | "stripe";
 
   paymentStatus:
     | "pending"
     | "paid"
     | "failed";
 
-  stripeSessionId?: string;
   stripePaymentIntentId?: string;
 }
 
-const paymentSchema =
-  new Schema<IPayment>(
-    {
-      order: {
-        type: Schema.Types.ObjectId,
-        ref: "Order",
-        required: true,
-      },
-
-      user: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
-
-      amount: {
-        type: Number,
-        required: true,
-      },
-
-      paymentMethod: {
-        type: String,
-        enum: [
-          "cod",
-          "credit_card",
-          "debit_card",
-          "net_banking",
-          "upi",
-        ],
-        required: true,
-      },
-
-      paymentStatus: {
-        type: String,
-        enum: [
-          "pending",
-          "paid",
-          "failed",
-        ],
-        default: "pending",
-      },
-
-      stripeSessionId: {
-        type: String,
-      },
-
-      stripePaymentIntentId: {
-        type: String,
-      },
+const paymentSchema = new Schema<IPayment>(
+  {
+    order: {
+      type: Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
     },
-    {
-      timestamps: true,
-    }
-  );
+
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    amount: {
+      type: Number,
+      required: true,
+    },
+
+    paymentMethod: {
+      type: String,
+      enum: ["cod", "stripe"],
+      required: true,
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
+
+    stripePaymentIntentId: {
+      type: String,
+      sparse: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 const Payment = mongoose.model<IPayment>(
   "Payment",

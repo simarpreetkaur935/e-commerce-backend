@@ -165,10 +165,14 @@ export const createOrder = async (req: Request, res: Response) => {
             shippingCharge: priceDetails.shippingCharge,
             discount: priceDetails.discount,
             totalAmount: priceDetails.totalAmount,
-
             paymentMethod,
             paymentStatus: "pending",
-            orderStatus: "pending",
+
+            orderStatus:
+              paymentMethod === "cod"
+                ? "confirmed"
+                : "pending",
+
             stockRestored: false,
           },
         ],

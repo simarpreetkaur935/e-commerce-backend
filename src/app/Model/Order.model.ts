@@ -34,6 +34,7 @@ export interface IOrder extends Document {
 
   paymentMethod:
     | "cod"
+    | "stripe"
     | "credit_card"
     | "debit_card"
     | "net_banking"
@@ -171,6 +172,7 @@ const orderSchema = new Schema<IOrder>(
         "debit_card",
         "net_banking",
         "upi",
+        "stripe",
       ],
       required: true,
     },
