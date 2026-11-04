@@ -1,3 +1,4 @@
+
 import express from "express";
 import authRoutes from "./Auth.routes";
 import userRoutes from "./User.routes";
@@ -7,28 +8,33 @@ import wishlistRoutes from "./wishlist.routes";
 import cartRoutes from "./Cart.routes";
 import paymentRoutes from "./Payment.routes";
 import subscriptionRoutes from "./Subscription.routes";
-import offersRoutes from  "./Offers.routes";
-import addressRoutes from "./Address.routes"
+import offersRoutes from "./Offers.routes";
+import addressRoutes from "./Address.routes";
+import orderRoutes from "./Order.routes";
+
 const router = express.Router();
 
-router.use("/auth", authRoutes)
+router.use("/auth", authRoutes);
 
-router.use("/users", userRoutes)
+router.use("/users", userRoutes);
 
-router.use("/categories",categoryRoutes)
+router.use("/categories", categoryRoutes);
 
-router.use("/products", productRoutes)
+router.use("/products", productRoutes);
 
-router.use("/wishlist", wishlistRoutes)
+router.use("/wishlist", wishlistRoutes);
 
-router.use("/cart",cartRoutes)
+router.use("/cart", cartRoutes);
 
-router.use("/payment",paymentRoutes)
+router.use("/payments", paymentRoutes);
 
 router.use("/subscriptions", subscriptionRoutes);
 
 router.use("/offer", offersRoutes);
 
 router.use("/addresses", addressRoutes);
+
+// ORDER ROUTES
+router.use("/orders", orderRoutes);
 
 export default router;

@@ -1,52 +1,25 @@
-import Stripe from "stripe";
 import stripe from "../../config/stripe.config";
 
-export const createPaymentSession = async (
+export const createPaymentIntent = async (
   amount: number,
   orderId: string
-): Promise<Stripe.Checkout.Session> => {
-  const session =
-    await stripe.checkout.sessions.create({
-      mode: "payment",
+) => {
+  const paymentIntent =
+    await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: "inr",
 
-      line_items: [
-        {
-          price_data: {
-            currency: "inr",
-
-            product_data: {
-              name: "E-Commerce Order",
-            },
-
-            unit_amount: amount * 100,
-          },
-
-          quantity: 1,
-        },
-      ],
+      automatic_payment_methods: {
+        enabled: true,
+      },
 
       metadata: {
         orderId,
       },
-
-      success_url:
-        "http://localhost:5173/payment/success",
-
-      cancel_url:
-        "http://localhost:5173/payment/cancel",
     });
 
-  return session;
-};
-
-
-export const getPaymentSession = async (
-  sessionId: string
-): Promise<Stripe.Checkout.Session> => {
-  const session =
-    await stripe.checkout.sessions.retrieve(
-      sessionId
-    );
-
-  return session;
+  return {
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+  };
 };

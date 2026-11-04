@@ -1,35 +1,64 @@
-import {Request, Response,} from "express";
+
+import { Request, Response } from "express";
+import mongoose from "mongoose";
 
 import Order from "../Model/Order.model";
 import Payment from "../Model/Payment.model";
+import Cart from "../Model/Cart.model";
+
+import calculateOrderPrice from "../../utils/calculateOrderPrice";
 
 import {
   createPaymentSession,
   getPaymentSession,
 } from "../../services/payment/payment.service";
-import Stripe from "stripe";
-import stripe from "../../config/stripe.config";
 
+// =================================================
+// TYPES
+// =================================================
 
-// =========================
+interface PopulatedProduct {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  price: number;
+  discountPrice?: number;
+  tax?: number;
+  images?: string[];
+}
+
+type PaymentMethod = "stripe" | "cod";
+
+// =================================================
+// GET LOGGED-IN USER
+// =================================================
+
+const getUserId = (req: Request): string | undefined => {
+  return (
+    req as Request & {
+      user?: {
+        id: string;
+      };
+    }
+  ).user?.id;
+};
+
+// =================================================
 // CREATE PAYMENT
-// =========================
+// =================================================
 
-export const createPayment = async (req: Request,res: Response) => {
+export const createPayment = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const {orderId,paymentMethod,} = req.body;
+    const { orderId, paymentMethod } = req.body as {
+      orderId: string;
+      paymentMethod: PaymentMethod;
+    };
 
-    // =========================
     // GET LOGGED-IN USER
-    // =========================
 
-    const userId = (
-      req as Request & {
-        user?: {
-          id: string;
-        };
-      }
-    ).user?.id;
+    const userId = getUserId(req);
 
     if (!userId) {
       return res.status(401).json({
@@ -38,9 +67,25 @@ export const createPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
+    // VALIDATE PAYMENT METHOD
+
+    if (!["stripe", "cod"].includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method",
+      });
+    }
+
+    // VALIDATE ORDER ID
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
     // FIND ORDER
-    // =========================
 
     const order = await Order.findOne({
       _id: orderId,
@@ -54,9 +99,7 @@ export const createPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
     // CHECK IF ALREADY PAID
-    // =========================
 
     if (order.paymentStatus === "paid") {
       return res.status(400).json({
@@ -65,15 +108,20 @@ export const createPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
     // GET ACTUAL ORDER AMOUNT
-    // =========================
 
     const amount = order.totalAmount;
 
-    // =========================
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order amount",
+      });
+    }
+
+    // =================================================
     // CASH ON DELIVERY
-    // =========================
+    // =================================================
 
     if (paymentMethod === "cod") {
       const payment = await Payment.create({
@@ -97,41 +145,39 @@ export const createPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
+    // =================================================
     // STRIPE ONLINE PAYMENT
-    // =========================
+    // =================================================
 
-    const stripeSession =
-      await createPaymentSession(
-        amount,
-        order._id.toString()
-      );
+    const stripeSession = await createPaymentSession(
+      amount,
+      order._id.toString()
+    );
 
-    // =========================
+    if (!stripeSession.url) {
+      throw new Error("Stripe checkout URL was not generated");
+    }
+
     // SAVE PAYMENT
-    // =========================
 
     const payment = await Payment.create({
       order: order._id,
       user: userId,
       amount,
-      paymentMethod,
+      paymentMethod: "stripe",
       paymentStatus: "pending",
       stripeSessionId: stripeSession.id,
     });
 
-    // =========================
     // UPDATE ORDER
-    // =========================
+    // Order model uses credit_card for Stripe payments.
 
-    order.paymentMethod = paymentMethod;
+    order.paymentMethod = "credit_card";
     order.paymentStatus = "pending";
 
     await order.save();
 
-    // =========================
     // SEND STRIPE SESSION
-    // =========================
 
     return res.status(201).json({
       success: true,
@@ -142,11 +188,9 @@ export const createPayment = async (req: Request,res: Response) => {
         url: stripeSession.url,
       },
     });
+
   } catch (error) {
-    console.error(
-      "Create Payment Error:",
-      error
-    );
+    console.error("Create Payment Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -155,28 +199,22 @@ export const createPayment = async (req: Request,res: Response) => {
   }
 };
 
-
-// =========================
+// =================================================
 // VERIFY PAYMENT
-// =========================
+// =================================================
 
-export const verifyPayment = async (req: Request,res: Response) => {
+export const verifyPayment = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const {
-      stripeSessionId,
-    } = req.body;
+    const { stripeSessionId } = req.body as {
+      stripeSessionId: string;
+    };
 
-    // =========================
     // GET LOGGED-IN USER
-    // =========================
 
-    const userId = (
-      req as Request & {
-        user?: {
-          id: string;
-        };
-      }
-    ).user?.id;
+    const userId = getUserId(req);
 
     if (!userId) {
       return res.status(401).json({
@@ -185,11 +223,16 @@ export const verifyPayment = async (req: Request,res: Response) => {
       });
     }
 
-    
+    // VALIDATE SESSION ID
 
-    // =========================
+    if (!stripeSessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Stripe session ID is required",
+      });
+    }
+
     // FIND PAYMENT
-    // =========================
 
     const payment = await Payment.findOne({
       stripeSessionId,
@@ -203,35 +246,33 @@ export const verifyPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
+    // CHECK IF ALREADY PAID
+
+    if (payment.paymentStatus === "paid") {
+      return res.status(200).json({
+        success: true,
+        message: "Payment already verified",
+        payment,
+      });
+    }
+
     // GET STRIPE SESSION
-    // =========================
 
-    const stripeSession =
-      await getPaymentSession(
-        stripeSessionId
-      );
+    const stripeSession = await getPaymentSession(
+      stripeSessionId
+    );
 
-    // =========================
-    // CHECK PAYMENT STATUS
-    // =========================
+    // VERIFY PAYMENT STATUS
 
-    
-    // =========================
-    // SAVE STRIPE PAYMENT INTENT
-    // =========================
+    if (stripeSession.payment_status !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment has not been completed",
+        paymentStatus: stripeSession.payment_status,
+      });
+    }
 
-  if (stripeSession.payment_status !== "paid") {
-  return res.status(400).json({
-    success: false,
-    message: "Payment has not been completed",
-    paymentStatus: stripeSession.payment_status,
-  });
-}
-
-    // =========================
     // FIND ORDER
-    // =========================
 
     const order = await Order.findOne({
       _id: payment.order,
@@ -245,18 +286,30 @@ export const verifyPayment = async (req: Request,res: Response) => {
       });
     }
 
-    // =========================
+    // SAVE STRIPE PAYMENT INTENT
+
+    if (
+      stripeSession.payment_intent &&
+      typeof stripeSession.payment_intent === "string"
+    ) {
+      payment.stripePaymentIntentId =
+        stripeSession.payment_intent;
+    }
+
+    // UPDATE PAYMENT
+
+    payment.paymentStatus = "paid";
+
+    await payment.save();
+
     // UPDATE ORDER
-    // =========================
 
     order.paymentStatus = "paid";
     order.orderStatus = "confirmed";
 
     await order.save();
 
-    // =========================
     // SUCCESS RESPONSE
-    // =========================
 
     return res.status(200).json({
       success: true,
@@ -264,11 +317,9 @@ export const verifyPayment = async (req: Request,res: Response) => {
       payment,
       order,
     });
+
   } catch (error) {
-    console.error(
-      "Verify Payment Error:",
-      error
-    );
+    console.error("Verify Payment Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -277,92 +328,90 @@ export const verifyPayment = async (req: Request,res: Response) => {
   }
 };
 
-// export const stripeWebhook = async ( req: Request,res: Response) => {
-//   const signature = req.headers["stripe-signature"];
-//   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+// =================================================
+// GET PAYMENT SUMMARY
+// =================================================
 
-//   if (!signature || !webhookSecret) {
-//     return res.status(400).send(
-//       "Missing Stripe signature or webhook secret"
-//     );
-//   }
+export const getPaymentSummary = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    // GET LOGGED-IN USER
 
-//   let event: Stripe.Event;
+    const userId = getUserId(req);
 
-//   try {
-//     event = stripe.webhooks.constructEvent(
-//       req.body,
-//       signature,
-//       webhookSecret
-//     );
-//   } catch (error) {
-//     console.error("Invalid Stripe webhook signature:", error);
-//     return res.status(400).send("Invalid webhook signature");
-//   }
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
-//   try {
-//     switch (event.type) {
-//       case "checkout.session.completed": {
-//         const session = event.data.object as Stripe.Checkout.Session;
+    // GET PAYMENT METHOD
 
-//         // Only mark the order paid when Stripe confirms payment.
-//         if (session.payment_status !== "paid") {
-//           break;
-//         }
+    const { paymentMethod } = req.body as {
+      paymentMethod: PaymentMethod;
+    };
 
-//         const orderId = session.metadata?.orderId;
+    if (!["stripe", "cod"].includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method",
+      });
+    }
 
-//         if (!orderId) {
-//           console.error("Order ID missing from session metadata");
-//           return res.status(400).send("Order ID missing");
-//         }
+    // GET USER CART AND POPULATE PRODUCT
 
-//         const payment = await Payment.findOne({
-//           stripeSessionId: session.id,
-//         });
+    const cartItems = await Cart.find({
+      user: userId,
+    }).populate<{
+      product: PopulatedProduct | null;
+    }>("product");
 
-//         if (!payment) {
-//           console.error("Payment not found for session:", session.id);
-//           return res.status(500).send("Payment record not found");
-//         }
+    // CHECK EMPTY CART
 
-//         if (payment.order.toString() !== orderId) {
-//           console.error("Payment/order mismatch:", session.id);
-//           return res.status(400).send("Payment/order mismatch");
-//         }
+    if (!cartItems.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Cart is empty",
+      });
+    }
 
-//         const order = await Order.findById(orderId);
+    // PREPARE CART ITEMS
 
-//         if (!order) {
-//           console.error("Order not found:", orderId);
-//           return res.status(500).send("Order not found");
-//         }
+    const formattedCartItems = cartItems.map((item) => {
+      if (!item.product) {
+        throw new Error("Product not found in cart");
+      }
 
-//         if (
-//           session.payment_intent &&
-//           typeof session.payment_intent === "string"
-//         ) {
-//           payment.stripePaymentIntentId = session.payment_intent;
-//         }
+      return {
+        product: item.product,
+        quantity: item.quantity,
+      };
+    });
 
-//         payment.paymentStatus = "paid";
-//         order.paymentStatus = "paid";
-//         order.orderStatus = "confirmed";
+    // CALCULATE PRICE
 
-//         await payment.save();
-//         await order.save();
+    const priceDetails = calculateOrderPrice(
+      formattedCartItems,
+      paymentMethod
+    );
 
-//         console.log("Stripe payment confirmed:", session.id);
-//         break;
-//       }
+    // SEND RESPONSE
 
-//       default:
-//         console.log("Ignoring Stripe event:", event.type);
-//     }
+    return res.status(200).json({
+      success: true,
+      message: "Price calculated successfully",
+      priceDetails,
+    });
 
-//     return res.status(200).json({ received: true });
-//   } catch (error) {
-//     console.error("Stripe webhook processing failed:", error);
-//     return res.status(500).send("Webhook processing failed");
-//   }
-// };
+  } catch (error) {
+    console.error("Payment Summary Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to calculate price details",
+    });
+  }
+};

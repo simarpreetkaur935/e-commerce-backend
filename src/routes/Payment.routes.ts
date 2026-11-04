@@ -3,6 +3,7 @@ import express from "express";
 import {
   createPayment,
   verifyPayment,
+  getPaymentSummary,
 } from "../app/Controllers/Payment.controller";
 
 import {
@@ -41,5 +42,17 @@ router.post(
   ErrorsCheck,
   verifyPayment
 );
+
+
+// =========================
+// GET PAYMENT SUMMARY
+// =========================
+
+router.post(
+  "/summary",
+  protect,
+  getPaymentSummary
+);
+
 
 export default router;
