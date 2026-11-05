@@ -70,7 +70,7 @@ export const createPayment = async (
     if (!["stripe", "cod"].includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method",
+        message: "Invalid payment method. Try again!",
       });
     }
 
@@ -462,7 +462,7 @@ export const getPaymentSummary = async (
     if (!["stripe", "cod"].includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method",
+        message: "Invalid payment method. I am here!",
       });
     }
 

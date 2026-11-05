@@ -1,11 +1,7 @@
-
 import stripe from "../../config/stripe.config";
 import Stripe from "stripe";
 
-export const createPaymentIntent = async (
-  amount: number,
-  orderId: string
-) => {
+export const createPaymentIntent = async (amount: number, orderId: string) => {
   const paymentIntent = await stripe.paymentIntents.create({
     amount: Math.round(amount * 100),
     currency: "inr",
@@ -26,7 +22,7 @@ export const createPaymentIntent = async (
 };
 
 export const getPaymentIntent = async (
-  paymentIntentId: string
+  paymentIntentId: string,
 ): Promise<Stripe.PaymentIntent> => {
   return await stripe.paymentIntents.retrieve(paymentIntentId);
 };

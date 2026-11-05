@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
@@ -6,6 +5,8 @@ import Cart from "../Model/Cart.model";
 import Order from "../Model/Order.model";
 import Product from "../Model/Product.model";
 import calculateOrderPrice from "../../utils/calculateOrderPrice";
+import Address from "../Model/Address.model";
+import { error } from "console";
 
 // =========================
 // HELPER: CREATE ERROR
@@ -22,9 +23,7 @@ export const createOrder = async (req: Request, res: Response) => {
   const session = await mongoose.startSession();
 
   try {
-    const userId = (
-      req as Request & { user?: { id: string } }
-    ).user?.id;
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -33,14 +32,7 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const { shippingAddress, paymentMethod } = req.body;
-
-    if (!shippingAddress || !paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        message: "Shipping address and payment method are required",
-      });
-    }
+    const { addressId, paymentMethod } = req.body;
 
     const allowedPaymentMethods = [
       "cod",
@@ -60,6 +52,10 @@ export const createOrder = async (req: Request, res: Response) => {
     let createdOrder: any;
 
     await session.withTransaction(async () => {
+      const shippingAddress = await Address.find({ _id: addressId });
+      console.log(shippingAddress);
+
+      if (!shippingAddress) throw new Error("address is missing");
       // GET CART
       const cartItems = await Cart.find({ user: userId })
         .populate("product")
@@ -74,16 +70,10 @@ export const createOrder = async (req: Request, res: Response) => {
         const product: any = cartItem.product;
 
         if (!product || !product.isActive) {
-          throw createError(
-            "A product in your cart is unavailable",
-            400
-          );
+          throw createError("A product in your cart is unavailable", 400);
         }
 
-        if (
-          !Number.isInteger(cartItem.quantity) ||
-          cartItem.quantity < 1
-        ) {
+        if (!Number.isInteger(cartItem.quantity) || cartItem.quantity < 1) {
           throw createError("Invalid product quantity", 400);
         }
       }
@@ -97,7 +87,7 @@ export const createOrder = async (req: Request, res: Response) => {
           product: item.product,
           quantity: item.quantity,
         })),
-        calculationPaymentMethod
+        calculationPaymentMethod,
       );
 
       const orderItems = [];
@@ -119,14 +109,11 @@ export const createOrder = async (req: Request, res: Response) => {
           {
             new: true,
             session,
-          }
+          },
         );
 
         if (!updatedProduct) {
-          throw createError(
-            `Insufficient stock for ${product.name}`,
-            400
-          );
+          throw createError(`Insufficient stock for ${product.name}`, 400);
         }
 
         // USE DISCOUNT PRICE ONLY IF VALID
@@ -136,9 +123,7 @@ export const createOrder = async (req: Request, res: Response) => {
           product.discountPrice >= 0 &&
           product.discountPrice < product.price;
 
-        const price = hasValidDiscount
-          ? product.discountPrice
-          : product.price;
+        const price = hasValidDiscount ? product.discountPrice : product.price;
 
         const total = price * quantity;
 
@@ -158,8 +143,7 @@ export const createOrder = async (req: Request, res: Response) => {
           {
             user: userId,
             items: orderItems,
-            shippingAddress,
-
+            addressId,
             subtotal: priceDetails.subtotal,
             tax: priceDetails.tax,
             shippingCharge: priceDetails.shippingCharge,
@@ -167,16 +151,11 @@ export const createOrder = async (req: Request, res: Response) => {
             totalAmount: priceDetails.totalAmount,
             paymentMethod,
             paymentStatus: "pending",
-
-            orderStatus:
-              paymentMethod === "cod"
-                ? "confirmed"
-                : "pending",
-
+            orderStatus: paymentMethod === "cod" ? "confirmed" : "pending",
             stockRestored: false,
           },
         ],
-        { session }
+        { session },
       );
 
       createdOrder = orders[0];
@@ -195,9 +174,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
     return res.status(error.statusCode || 500).json({
       success: false,
-      message: error.statusCode
-        ? error.message
-        : "Unable to create order",
+      message: error.statusCode ? error.message : "Unable to create order",
     });
   } finally {
     await session.endSession();
@@ -210,9 +187,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
 export const getMyOrders = async (req: Request, res: Response) => {
   try {
-    const userId = (
-      req as Request & { user?: { id: string } }
-    ).user?.id;
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -247,9 +222,7 @@ export const getOrderById = async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 
-    const userId = (
-      req as Request & { user?: { id: string } }
-    ).user?.id;
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -301,9 +274,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 
-    const userId = (
-      req as Request & { user?: { id: string } }
-    ).user?.id;
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -341,7 +312,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
         {
           new: true,
           session,
-        }
+        },
       );
 
       if (!cancelledOrder) {
@@ -362,14 +333,11 @@ export const cancelOrder = async (req: Request, res: Response) => {
         const result = await Product.updateOne(
           { _id: item.product },
           { $inc: { stock: item.quantity } },
-          { session }
+          { session },
         );
 
         if (result.matchedCount !== 1) {
-          throw createError(
-            `Product ${item.name} was not found`,
-            400
-          );
+          throw createError(`Product ${item.name} was not found`, 400);
         }
       }
     });
@@ -384,9 +352,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
 
     return res.status(error.statusCode || 500).json({
       success: false,
-      message: error.statusCode
-        ? error.message
-        : "Unable to cancel order",
+      message: error.statusCode ? error.message : "Unable to cancel order",
     });
   } finally {
     await session.endSession();
@@ -403,9 +369,7 @@ export const returnOrder = async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
 
-    const userId = (
-      req as Request & { user?: { id: string } }
-    ).user?.id;
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -441,7 +405,7 @@ export const returnOrder = async (req: Request, res: Response) => {
         {
           new: true,
           session,
-        }
+        },
       );
 
       if (!returnedOrder) {
@@ -456,7 +420,7 @@ export const returnOrder = async (req: Request, res: Response) => {
 
         throw createError(
           "Only delivered orders that have not already been returned can be returned",
-          400
+          400,
         );
       }
 
@@ -465,14 +429,11 @@ export const returnOrder = async (req: Request, res: Response) => {
         const result = await Product.updateOne(
           { _id: item.product },
           { $inc: { stock: item.quantity } },
-          { session }
+          { session },
         );
 
         if (result.matchedCount !== 1) {
-          throw createError(
-            `Product ${item.name} was not found`,
-            400
-          );
+          throw createError(`Product ${item.name} was not found`, 400);
         }
       }
     });
@@ -487,9 +448,7 @@ export const returnOrder = async (req: Request, res: Response) => {
 
     return res.status(error.statusCode || 500).json({
       success: false,
-      message: error.statusCode
-        ? error.message
-        : "Unable to return order",
+      message: error.statusCode ? error.message : "Unable to return order",
     });
   } finally {
     await session.endSession();

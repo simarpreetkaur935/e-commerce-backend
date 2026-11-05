@@ -1,8 +1,4 @@
-
-import mongoose, {
-  Document,
-  Schema,
-} from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IOrderItem {
   product: mongoose.Types.ObjectId;
@@ -18,13 +14,7 @@ export interface IOrder extends Document {
 
   items: IOrderItem[];
 
-  shippingAddress: {
-    street: string;
-    city: string;
-    state: string;
-    country: string;
-    pincode: string;
-  };
+  addressId: mongoose.Types.ObjectId;
 
   subtotal: number;
   tax: number;
@@ -40,10 +30,7 @@ export interface IOrder extends Document {
     | "net_banking"
     | "upi";
 
-  paymentStatus:
-    | "pending"
-    | "paid"
-    | "failed";
+  paymentStatus: "pending" | "paid" | "failed";
 
   orderStatus:
     | "pending"
@@ -104,31 +91,9 @@ const orderSchema = new Schema<IOrder>(
       },
     ],
 
-    shippingAddress: {
-      street: {
-        type: String,
-        required: true,
-      },
-
-      city: {
-        type: String,
-        required: true,
-      },
-
-      state: {
-        type: String,
-        required: true,
-      },
-
-      country: {
-        type: String,
-        required: true,
-      },
-
-      pincode: {
-        type: String,
-        required: true,
-      },
+    addressId: {
+      type: mongoose.Types.ObjectId,
+      required: true,
     },
 
     subtotal: {
@@ -179,11 +144,7 @@ const orderSchema = new Schema<IOrder>(
 
     paymentStatus: {
       type: String,
-      enum: [
-        "pending",
-        "paid",
-        "failed",
-      ],
+      enum: ["pending", "paid", "failed"],
       default: "pending",
     },
 
@@ -213,12 +174,9 @@ const orderSchema = new Schema<IOrder>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const Order = mongoose.model<IOrder>(
-  "Order",
-  orderSchema
-);
+const Order = mongoose.model<IOrder>("Order", orderSchema);
 
 export default Order;

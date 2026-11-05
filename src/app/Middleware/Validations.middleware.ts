@@ -6,13 +6,10 @@ import Wishlist from "../Model/wishlist.model";
 import Cart from "../Model/Cart.model";
 import Subscription from "../Model/Subscription.model";
 
-
 // ? ********************************************* Registers *********************************************
 
 export const registerValidations = [
-  body("name")
-    .notEmpty()
-    .withMessage("Name is required!"),
+  body("name").notEmpty().withMessage("Name is required!"),
 
   body("email")
     .notEmpty()
@@ -26,9 +23,7 @@ export const registerValidations = [
         return true;
       }
 
-      return Promise.reject(
-        "Email already exist. Try again!"
-      );
+      return Promise.reject("Email already exist. Try again!");
     }),
 
   body("phone")
@@ -43,18 +38,14 @@ export const registerValidations = [
         return true;
       }
 
-      return Promise.reject(
-        "Phone number already exists!"
-      );
+      return Promise.reject("Phone number already exists!");
     }),
 
   body("password")
     .notEmpty()
     .withMessage("password is required!")
-     .isLength({ min: 8 })
-  .withMessage(
-    "Password must be at least 8 characters!"
-  ),
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters!"),
 
   body("confirmPassword")
     .notEmpty()
@@ -63,9 +54,7 @@ export const registerValidations = [
       const { password } = req.body;
 
       if (password !== value) {
-        return Promise.reject(
-          "Passwords must be same!"
-        );
+        return Promise.reject("Passwords must be same!");
       }
 
       return true;
@@ -102,12 +91,10 @@ export const forgotPasswordValidations = [
     .withMessage("Enter a valid email")
 
     .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: value,});
+      const user = await User.findOne({ email: value });
 
       if (!user) {
-        return Promise.reject(
-          "No account found with this email"
-        );
+        return Promise.reject("No account found with this email");
       }
 
       req.body.user = user;
@@ -145,9 +132,7 @@ export const resetPasswordValidations = [
     })
     .withMessage("OTP must be 6 digits")
     .isNumeric()
-    .withMessage(
-      "OTP must contain only numbers"
-    )
+    .withMessage("OTP must contain only numbers")
     .custom(async (value, { req }) => {
       const user = req.body.user;
 
@@ -160,9 +145,7 @@ export const resetPasswordValidations = [
         !user.resetPasswordOtpExpires ||
         user.resetPasswordOtpExpires < new Date()
       ) {
-        return Promise.reject(
-          "Invalid or expired OTP"
-        );
+        return Promise.reject("Invalid or expired OTP");
       }
 
       return true;
@@ -174,22 +157,14 @@ export const resetPasswordValidations = [
     .isLength({
       min: 8,
     })
-    .withMessage(
-      "Password must be at least 8 characters"
-    ),
+    .withMessage("Password must be at least 8 characters"),
 
   body("confirmPassword")
     .notEmpty()
-    .withMessage(
-      "Confirm password is required"
-    )
+    .withMessage("Confirm password is required")
     .custom((value, { req }) => {
-      if (
-        value !== req.body.password
-      ) {
-        return Promise.reject(
-          "Passwords do not match"
-        );
+      if (value !== req.body.password) {
+        return Promise.reject("Passwords do not match");
       }
 
       return true;
@@ -262,8 +237,6 @@ export const changePasswordValidations = [
 
       return true;
     }),
-
-
 ];
 //for category controller
 
@@ -271,11 +244,9 @@ export const changePasswordValidations = [
 // CREATE CATEGORY
 // =========================
 
-
-
 export const createCategoryValidations = [
   body("name")
-   .notEmpty()
+    .notEmpty()
     .withMessage("Category name is required")
     .trim()
     .custom(async (value) => {
@@ -295,10 +266,7 @@ export const createCategoryValidations = [
     .isString()
     .withMessage("Description must be a string"),
 
-  body("image")
-    .optional()
-    .isString()
-    .withMessage("Image must be a string"),
+  body("image").optional().isString().withMessage("Image must be a string"),
 
   body("parentCategory")
     .optional()
@@ -318,11 +286,8 @@ export const createCategoryValidations = [
 //update category
 
 export const updateCategoryValidations = [
-
   // Check category ID
-  param("id")
-    .isMongoId()
-    .withMessage("Invalid category ID"),
+  param("id").isMongoId().withMessage("Invalid category ID"),
 
   // Check name
   body("name")
@@ -344,20 +309,15 @@ export const updateCategoryValidations = [
     }),
 
   // Description
-  body("description")
-    .optional()
-    .trim(),
+  body("description").optional().trim(),
 
   // Image
-  body("image")
-    .optional()
-    .trim(),
+  body("image").optional().trim(),
 
   // Parent category
   body("parentCategory")
     .optional({ nullable: true })
     .custom(async (value, { req }) => {
-
       // Allow empty parent category
       if (value === "" || value === null) {
         return true;
@@ -365,18 +325,14 @@ export const updateCategoryValidations = [
 
       // Category cannot be its own parent
       if (value === req.params?.id) {
-        return Promise.reject(
-          "A category cannot be its own parent"
-        );
+        return Promise.reject("A category cannot be its own parent");
       }
 
       // Parent category must exist
       const parent = await Category.findById(value);
 
       if (!parent) {
-        return Promise.reject(
-          "Parent category not found"
-        );
+        return Promise.reject("Parent category not found");
       }
 
       return true;
@@ -402,12 +358,8 @@ export const categoryIdValidation = [
 // =========================
 
 export const createProductValidations = [
-
   // Name
-  body("name")
-    .trim()
-    .notEmpty()
-    .withMessage("Product name is required"),
+  body("name").trim().notEmpty().withMessage("Product name is required"),
 
   // Description
   body("description")
@@ -416,9 +368,7 @@ export const createProductValidations = [
     .withMessage("Product description is required"),
 
   // Brand
-  body("brand")
-    .optional()
-    .trim(),
+  body("brand").optional().trim(),
 
   // Category
   body("category")
@@ -437,10 +387,7 @@ export const createProductValidations = [
     }),
 
   // Images
-  body("images")
-    .optional()
-    .isArray()
-    .withMessage("Images must be an array"),
+  body("images").optional().isArray().withMessage("Images must be an array"),
 
   // Price
   body("price")
@@ -478,9 +425,7 @@ export const createProductValidations = [
       });
 
       if (existingProduct) {
-        return Promise.reject(
-          "Product with this SKU already exists"
-        );
+        return Promise.reject("Product with this SKU already exists");
       }
 
       return true;
@@ -499,10 +444,7 @@ export const createProductValidations = [
     .withMessage("Specifications must be an object"),
 
   // Tags
-  body("tags")
-    .optional()
-    .isArray()
-    .withMessage("Tags must be an array"),
+  body("tags").optional().isArray().withMessage("Tags must be an array"),
 
   // Weight
   body("weight")
@@ -524,15 +466,12 @@ export const createProductValidations = [
 ];
 //get by id,//del by id
 
-
 // =========================
 // PRODUCT ID VALIDATION
 // =========================
 
 export const productIdValidation = [
-  param("id")
-    .isMongoId()
-    .withMessage("Invalid product ID"),
+  param("id").isMongoId().withMessage("Invalid product ID"),
 ];
 // related product validation
 export const getRelatedProductsValidations = [
@@ -551,18 +490,13 @@ export const getRelatedProductsValidations = [
 ];
 //update product
 
-
 // =========================
 // UPDATE PRODUCT VALIDATION
 // =========================
 
 export const updateProductValidations = [
-
   // Product ID
-  param("id")
-    .isMongoId()
-    .withMessage("Invalid product ID"),
-
+  param("id").isMongoId().withMessage("Invalid product ID"),
 
   // Name
   body("name")
@@ -571,7 +505,6 @@ export const updateProductValidations = [
     .notEmpty()
     .withMessage("Product name cannot be empty"),
 
-
   // Description
   body("description")
     .optional()
@@ -579,12 +512,8 @@ export const updateProductValidations = [
     .notEmpty()
     .withMessage("Product description cannot be empty"),
 
-
   // Brand
-  body("brand")
-    .optional()
-    .trim(),
-
+  body("brand").optional().trim(),
 
   // Category
   body("category")
@@ -601,13 +530,8 @@ export const updateProductValidations = [
       return true;
     }),
 
-
   // Images
-  body("images")
-    .optional()
-    .isArray()
-    .withMessage("Images must be an array"),
-
+  body("images").optional().isArray().withMessage("Images must be an array"),
 
   // Price
   body("price")
@@ -615,13 +539,11 @@ export const updateProductValidations = [
     .isFloat({ min: 0 })
     .withMessage("Price must be a positive number"),
 
-
   // Discount Price
   body("discountPrice")
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Discount price must be a positive number"),
-
 
   // Tax
   body("tax")
@@ -629,13 +551,11 @@ export const updateProductValidations = [
     .isFloat({ min: 0 })
     .withMessage("Tax must be a positive number"),
 
-
   // Stock
   body("stock")
     .optional()
     .isInt({ min: 0 })
     .withMessage("Stock cannot be negative"),
-
 
   // SKU
   body("sku")
@@ -656,13 +576,11 @@ export const updateProductValidations = [
       return true;
     }),
 
-
   // Low Stock Threshold
   body("lowStockThreshold")
     .optional()
     .isInt({ min: 0 })
     .withMessage("Low stock threshold cannot be negative"),
-
 
   // Specifications
   body("specifications")
@@ -670,13 +588,8 @@ export const updateProductValidations = [
     .isObject()
     .withMessage("Specifications must be an object"),
 
-
   // Tags
-  body("tags")
-    .optional()
-    .isArray()
-    .withMessage("Tags must be an array"),
-
+  body("tags").optional().isArray().withMessage("Tags must be an array"),
 
   // Weight
   body("weight")
@@ -684,13 +597,11 @@ export const updateProductValidations = [
     .isFloat({ min: 0 })
     .withMessage("Weight cannot be negative"),
 
-
   // Active status
   body("isActive")
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
-
 
   // Featured status
   body("isFeatured")
@@ -698,8 +609,7 @@ export const updateProductValidations = [
     .isBoolean()
     .withMessage("isFeatured must be a boolean"),
 ];
-///add to wishlist 
-
+///add to wishlist
 
 export const addWishlistValidation = [
   param("productId")
@@ -795,9 +705,7 @@ export const removeWishlistValidation = [
       });
 
       if (!wishlist) {
-        return Promise.reject(
-          "Product not found in wishlist"
-        );
+        return Promise.reject("Product not found in wishlist");
       }
 
       return true;
@@ -845,16 +753,12 @@ export const addToCartValidation = [
       const quantity = req.body.quantity ?? 1;
 
       if (!Number.isInteger(quantity) || quantity < 1) {
-        throw new Error(
-          "Quantity must be at least 1"
-        );
+        throw new Error("Quantity must be at least 1");
       }
 
       // Check requested quantity against stock
       if (quantity > product.stock) {
-        throw new Error(
-          "Requested quantity is greater than available stock"
-        );
+        throw new Error("Requested quantity is greater than available stock");
       }
 
       // Check existing cart item
@@ -866,13 +770,10 @@ export const addToCartValidation = [
       // If product already exists,
       // check final quantity
       if (existingCartItem) {
-        const newQuantity =
-          existingCartItem.quantity + quantity;
+        const newQuantity = existingCartItem.quantity + quantity;
 
         if (newQuantity > product.stock) {
-          throw new Error(
-            "Not enough stock available"
-          );
+          throw new Error("Not enough stock available");
         }
       }
 
@@ -971,9 +872,7 @@ export const updateCartValidation = [
       }
 
       if (quantity > product.stock) {
-        throw new Error(
-          "Requested quantity is greater than available stock"
-        );
+        throw new Error("Requested quantity is greater than available stock");
       }
 
       return true;
@@ -1047,34 +946,19 @@ export const verifyOtpValidations = [
       });
 
       if (!user) {
-        throw new Error(
-          "Email does not exist"
-        );
+        throw new Error("Email does not exist");
       }
 
-      if (
-        !user.resetPasswordOtp
-      ) {
-        throw new Error(
-          "OTP not found. Please request a new OTP"
-        );
+      if (!user.resetPasswordOtp) {
+        throw new Error("OTP not found. Please request a new OTP");
       }
 
-      if (
-        !user.resetPasswordOtpExpires
-      ) {
-        throw new Error(
-          "OTP expiry not found. Please request a new OTP"
-        );
+      if (!user.resetPasswordOtpExpires) {
+        throw new Error("OTP expiry not found. Please request a new OTP");
       }
 
-      if (
-        new Date() >
-        user.resetPasswordOtpExpires
-      ) {
-        throw new Error(
-          "OTP has expired. Please request a new OTP"
-        );
+      if (new Date() > user.resetPasswordOtpExpires) {
+        throw new Error("OTP has expired. Please request a new OTP");
       }
 
       return true;
@@ -1089,13 +973,9 @@ export const verifyOtpValidations = [
     })
     .withMessage("OTP must be 6 digits")
     .isNumeric()
-    .withMessage(
-      "OTP must contain only numbers"
-    ),
+    .withMessage("OTP must contain only numbers"),
 ];
 //payment
-
-
 
 // =========================
 // CREATE PAYMENT VALIDATION
@@ -1111,16 +991,9 @@ export const createPaymentValidations = [
   body("paymentMethod")
     .notEmpty()
     .withMessage("Payment method is required")
-    .isIn([
-      "cod",
-      "credit_card",
-      "debit_card",
-      "net_banking",
-      "upi",
-    ])
+    .isIn(["stripe","cod", "credit_card", "debit_card", "net_banking", "upi"])
     .withMessage("Invalid payment method"),
 ];
-
 
 // =========================
 // VERIFY PAYMENT VALIDATION
@@ -1136,67 +1009,18 @@ export const verifyPaymentValidations = [
 ];
 //order validation
 
-
-
 // =========================
 // CREATE ORDER VALIDATION
 // =========================
 
 export const createOrderValidations = [
-  body("shippingAddress")
-    .notEmpty()
-    .withMessage("Shipping address is required")
-    .isObject()
-    .withMessage("Shipping address must be an object"),
-
-  body("shippingAddress.street")
-    .notEmpty()
-    .withMessage("Street is required")
-    .isString()
-    .withMessage("Street must be a string")
-    .trim(),
-
-  body("shippingAddress.city")
-    .notEmpty()
-    .withMessage("City is required")
-    .isString()
-    .withMessage("City must be a string")
-    .trim(),
-
-  body("shippingAddress.state")
-    .notEmpty()
-    .withMessage("State is required")
-    .isString()
-    .withMessage("State must be a string")
-    .trim(),
-
-  body("shippingAddress.country")
-    .notEmpty()
-    .withMessage("Country is required")
-    .isString()
-    .withMessage("Country must be a string")
-    .trim(),
-
-  body("shippingAddress.pincode")
-    .notEmpty()
-    .withMessage("Pincode is required")
-    .isString()
-    .withMessage("Pincode must be a string")
-    .trim(),
-
+  body("addressId").notEmpty().withMessage("Address id is missing"),
   body("paymentMethod")
     .notEmpty()
     .withMessage("Payment method is required")
-    .isIn([
-      "cod",
-      "credit_card",
-      "debit_card",
-      "net_banking",
-      "upi",
-    ])
+    .isIn(["cod", "credit_card", "debit_card", "net_banking", "upi"])
     .withMessage("Invalid payment method"),
 ];
-
 
 // =========================
 // GET ORDER BY ID VALIDATION
@@ -1209,7 +1033,6 @@ export const getOrderByIdValidations = [
     .isMongoId()
     .withMessage("Invalid order ID"),
 ];
-
 
 // =========================
 // CANCEL ORDER VALIDATION
