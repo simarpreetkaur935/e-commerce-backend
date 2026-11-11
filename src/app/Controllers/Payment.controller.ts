@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
@@ -46,10 +45,7 @@ const getUserId = (req: Request): string | undefined => {
 // CREATE PAYMENT
 // =================================================
 
-export const createPayment = async (
-  req: Request,
-  res: Response
-) => {
+export const createPayment = async (req: Request, res: Response) => {
   try {
     const { orderId, paymentMethod } = req.body as {
       orderId: string;
@@ -143,7 +139,6 @@ export const createPayment = async (
     // =================================================
 
     if (paymentMethod === "cod") {
-
       // CHECK EXISTING COD PAYMENT
 
       let payment = await Payment.findOne({
@@ -194,7 +189,7 @@ export const createPayment = async (
 
     if (existingPayment?.stripePaymentIntentId) {
       const existingIntent = await getPaymentIntent(
-        existingPayment.stripePaymentIntentId
+        existingPayment.stripePaymentIntentId,
       );
 
       const reusableStatuses = [
@@ -206,7 +201,6 @@ export const createPayment = async (
       ];
 
       if (reusableStatuses.includes(existingIntent.status)) {
-
         if (!existingIntent.client_secret) {
           throw new Error("Stripe client secret is unavailable");
         }
@@ -225,7 +219,7 @@ export const createPayment = async (
 
     const stripePayment = await createPaymentIntent(
       amount,
-      order._id.toString()
+      order._id.toString(),
     );
 
     if (!stripePayment.clientSecret) {
@@ -238,8 +232,7 @@ export const createPayment = async (
 
     if (existingPayment) {
       existingPayment.amount = amount;
-      existingPayment.stripePaymentIntentId =
-        stripePayment.paymentIntentId;
+      existingPayment.stripePaymentIntentId = stripePayment.paymentIntentId;
 
       payment = await existingPayment.save();
     } else {
@@ -271,7 +264,6 @@ export const createPayment = async (
       clientSecret: stripePayment.clientSecret,
       paymentIntentId: stripePayment.paymentIntentId,
     });
-
   } catch (error) {
     console.error("Create Payment Error:", error);
 
@@ -286,10 +278,7 @@ export const createPayment = async (
 // VERIFY PAYMENT
 // =================================================
 
-export const verifyPayment = async (
-  req: Request,
-  res: Response
-) => {
+export const verifyPayment = async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body as {
       paymentIntentId: string;
@@ -306,10 +295,7 @@ export const verifyPayment = async (
 
     // VALIDATE PAYMENT INTENT ID
 
-    if (
-      !paymentIntentId ||
-      typeof paymentIntentId !== "string"
-    ) {
+    if (!paymentIntentId || typeof paymentIntentId !== "string") {
       return res.status(400).json({
         success: false,
         message: "PaymentIntent ID is required",
@@ -343,15 +329,11 @@ export const verifyPayment = async (
 
     // RETRIEVE PAYMENT INTENT FROM STRIPE
 
-    const paymentIntent = await getPaymentIntent(
-      paymentIntentId
-    );
+    const paymentIntent = await getPaymentIntent(paymentIntentId);
 
     // VERIFY ORDER REFERENCE
 
-    if (
-      paymentIntent.metadata.orderId !== payment.order.toString()
-    ) {
+    if (paymentIntent.metadata.orderId !== payment.order.toString()) {
       return res.status(400).json({
         success: false,
         message: "PaymentIntent does not belong to this order",
@@ -402,7 +384,6 @@ export const verifyPayment = async (
         message: "Order has already been paid",
       });
     }
-
     // UPDATE PAYMENT
 
     payment.paymentStatus = "paid";
@@ -416,6 +397,12 @@ export const verifyPayment = async (
 
     await order.save();
 
+    // CLEAR CART ONLY AFTER SUCCESSFUL PAYMENT VERIFICATION
+
+    await Cart.deleteMany({
+      user: userId,
+    });
+
     // SUCCESS RESPONSE
 
     return res.status(200).json({
@@ -424,7 +411,6 @@ export const verifyPayment = async (
       payment,
       order,
     });
-
   } catch (error) {
     console.error("Verify Payment Error:", error);
 
@@ -439,10 +425,7 @@ export const verifyPayment = async (
 // GET PAYMENT SUMMARY
 // =================================================
 
-export const getPaymentSummary = async (
-  req: Request,
-  res: Response
-) => {
+export const getPaymentSummary = async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
 
@@ -498,17 +481,13 @@ export const getPaymentSummary = async (
 
     // CALCULATE PRICE
 
-    const priceDetails = calculateOrderPrice(
-      formattedCartItems,
-      paymentMethod
-    );
+    const priceDetails = calculateOrderPrice(formattedCartItems, paymentMethod);
 
     return res.status(200).json({
       success: true,
       message: "Price calculated successfully",
       priceDetails,
     });
-
   } catch (error) {
     console.error("Payment Summary Error:", error);
 

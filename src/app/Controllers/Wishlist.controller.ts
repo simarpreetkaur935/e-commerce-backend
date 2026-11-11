@@ -2,7 +2,7 @@ import Wishlist from "../Model/wishlist.model";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
-
+// add to wishlist
 export const addToWishlist = async (req: Request, res: Response) => {
   const { productId } = req.params;
 
@@ -38,10 +38,7 @@ export const addToWishlist = async (req: Request, res: Response) => {
 // GET MY WISHLIST
 // =========================
 
-export const getMyWishlist = async (
-  req: Request,
-  res: Response
-) => {
+export const getMyWishlist = async (req: Request,res: Response) => {
   const userId = (req as Request & {
     user?: { id: string };
   }).user?.id;
@@ -69,10 +66,7 @@ export const getMyWishlist = async (
     });
   }
 };
-export const removeFromWishlist = async (
-  req: Request,
-  res: Response
-) => {
+export const removeFromWishlist = async (req: Request, res: Response) => {
   const { productId } = req.params;
 
   const userId = (req as Request & {

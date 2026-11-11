@@ -1,4 +1,5 @@
-import { body, param } from "express-validator";
+import { body, param, query } from "express-validator";
+import type { Request } from "express";
 import User from "../Model/User.model";
 import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
@@ -488,6 +489,93 @@ export const getRelatedProductsValidations = [
       return true;
     }),
 ];
+// get all products
+
+export const getAllProductsValidation = [
+  // LIMIT
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage("Limit must be between 1 and 50"),
+
+  // PRODUCT TYPE
+  query("type")
+    .optional()
+    .isString()
+    .bail()
+    .isIn([
+      "best-sellers",
+      "new-arrivals",
+      "todays-deals",
+      "offers",
+    ])
+    .withMessage("Invalid product type"),
+
+  // SORT TYPE
+  query("sortType")
+    .optional()
+    .isString()
+    .bail()
+    .isIn(["price", "createdAt", "name"])
+    .withMessage("Invalid sort option"),
+
+  // SORT ORDER
+  query("sortOrder")
+    .optional()
+    .isIn(["1", "-1"])
+    .withMessage("Sort order must be 1 or -1"),
+
+  // CURSOR ID
+  query("cursorId")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid cursor ID")
+    .bail()
+      .custom((_, { req }) => {
+    const request = req as Request;
+
+    const sortType =
+      typeof request.query.sortType === "string"
+        ? request.query.sortType
+        : "price";
+
+    const cursorPrice = request.query.cursorPrice;
+    
+      if (sortType !== "price") {
+        throw new Error("Cursor pagination is only supported for price sorting");
+      }
+
+      if (
+        typeof cursorPrice !== "string" ||
+        cursorPrice.trim() === "" ||
+        !Number.isFinite(Number(cursorPrice))
+      ) {
+        throw new Error("A valid price cursor is required");
+      }
+
+      return true;
+    }),
+
+  // CURSOR PRICE
+  query("cursorPrice")
+    .optional()
+    .isFloat()
+    .withMessage("Cursor price must be a valid number"),
+
+  // CATEGORY ID
+  query("category")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid category ID"),
+
+  // SEARCH
+  query("search")
+    .optional()
+    .isString()
+    .withMessage("Search must be a string"),
+];
+
+
 //update product
 
 // =========================
@@ -609,6 +697,7 @@ export const updateProductValidations = [
     .isBoolean()
     .withMessage("isFeatured must be a boolean"),
 ];
+//wishlist
 ///add to wishlist
 
 export const addWishlistValidation = [

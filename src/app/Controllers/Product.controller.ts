@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
-import Order from "../Model/Order.model";
+import Order from "../Model/Order.model"
+
 
 import mongoose from "mongoose";
 
@@ -169,23 +170,10 @@ export const getAllProducts = async (req: Request, res: Response) => {
         : undefined;
 
     // 2. VALIDATE SORT
-    const allowedSortFields = ["price", "createdAt", "name"];
+    
 
-    if (!allowedSortFields.includes(sortType)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid sort option",
-      });
-    }
+   const sortDirection: 1 | -1 = sortOrder === -1 ? -1 : 1;
 
-    if (sortOrder !== 1 && sortOrder !== -1) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid sort order",
-      });
-    }
-
-    const sortDirection: 1 | -1 = sortOrder;
 
     const sortOptions: Record<string, 1 | -1> = {
       [sortType]: sortDirection,
@@ -193,12 +181,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
     };
 
     // 3. VALIDATE CURSOR
-    if (cursorId && !mongoose.isValidObjectId(cursorId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid cursor ID",
-      });
-    }
+    
 
     // 4. BUILD BASE QUERY
     // 4. BUILD BASE QUERY
@@ -217,35 +200,19 @@ export const getAllProducts = async (req: Request, res: Response) => {
     const category =
       typeof req.query.category === "string" ? req.query.category : undefined;
 
-    if (category) {
-      if (!mongoose.isValidObjectId(category)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid category ID",
-        });
-      }
-
-      query.category = category;
-    }
+   if (category) {
+  query.category = category;
+}
     // 5. APPLY PRICE CURSOR
     const cursorPrice =
-      req.query.cursorPrice !== undefined
-        ? Number(req.query.cursorPrice)
-        : undefined;
+  req.query.cursorPrice !== undefined
+    ? Number(req.query.cursorPrice)
+    : undefined;
 
-    if (cursorId) {
-      if (
-        sortType !== "price" ||
-        cursorPrice === undefined ||
-        !Number.isFinite(cursorPrice)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "A valid price cursor is required",
-        });
-      }
+if (cursorId && cursorPrice !== undefined) {
+  const id = new mongoose.Types.ObjectId(cursorId);
 
-      const id = new mongoose.Types.ObjectId(cursorId);
+
       const operator = sortDirection === 1 ? "$gt" : "$lt";
 
       query.$or = [
@@ -268,22 +235,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
       "new-arrivals": await getNewArrivals(),
     };
 
-    const allowedTypes = [
-      "best-sellers",
-      "new-arrivals",
-      "todays-deals",
-      "offers",
-    ];
-
-    if (
-      type !== undefined &&
-      (typeof type !== "string" || !allowedTypes.includes(type))
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid operation/type. Try again!",
-      });
-    }
+    
 
     // 7. HANDLE BEST-SELLERS SEPARATELY
     if (type === "best-sellers") {
@@ -508,9 +460,32 @@ export const updateProduct = async (req: Request, res: Response) => {
   } = req.body;
 
   try {
-    const product = await Product.findById(id);
-
-    if (!product) {
+     const updatedProduct = await Product.findOneAndUpdate(
+          { _id: id },
+          {
+            name,
+    description,
+    brand,
+    category,
+    images,
+    price,
+    discountPrice,
+    tax,
+    stock,
+    sku,
+    lowStockThreshold,
+    specifications,
+    tags,
+    weight,
+    isActive,
+    isFeatured,
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        );
+    if (!updatedProduct) {
       res.status(404).json({
         success: false,
         message: "Product not found",
@@ -518,88 +493,6 @@ export const updateProduct = async (req: Request, res: Response) => {
 
       return;
     }
-
-    // Update name
-    if (name !== undefined) {
-      product.name = name.trim();
-    }
-
-    // Update description
-    if (description !== undefined) {
-      product.description = description.trim();
-    }
-
-    // Update brand
-    if (brand !== undefined) {
-      product.brand = brand;
-    }
-
-    // Update category
-    if (category !== undefined) {
-      product.category = category;
-    }
-
-    // Update images
-    if (images !== undefined) {
-      product.images = images;
-    }
-
-    // Update price
-    if (price !== undefined) {
-      product.price = price;
-    }
-
-    // Update discount price
-    if (discountPrice !== undefined) {
-      product.discountPrice = discountPrice;
-    }
-
-    // Update tax
-    if (tax !== undefined) {
-      product.tax = tax;
-    }
-
-    // Update stock
-    if (stock !== undefined) {
-      product.stock = stock;
-    }
-
-    // Update SKU
-    if (sku !== undefined) {
-      product.sku = sku.trim();
-    }
-
-    // Update low stock threshold
-    if (lowStockThreshold !== undefined) {
-      product.lowStockThreshold = lowStockThreshold;
-    }
-
-    // Update specifications
-    if (specifications !== undefined) {
-      product.specifications = specifications;
-    }
-
-    // Update tags
-    if (tags !== undefined) {
-      product.tags = tags;
-    }
-
-    // Update weight
-    if (weight !== undefined) {
-      product.weight = weight;
-    }
-
-    // Update active status
-    if (isActive !== undefined) {
-      product.isActive = isActive;
-    }
-
-    // Update featured status
-    if (isFeatured !== undefined) {
-      product.isFeatured = isFeatured;
-    }
-
-    const updatedProduct = await product.save();
 
     res.status(200).json({
       success: true,

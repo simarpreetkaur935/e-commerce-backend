@@ -161,7 +161,10 @@ export const createOrder = async (req: Request, res: Response) => {
       createdOrder = orders[0];
 
       // CLEAR CART
-      await Cart.deleteMany({ user: userId }).session(session);
+      // CLEAR CART ONLY FOR COD
+if (paymentMethod === "cod") {
+  await Cart.deleteMany({ user: userId }).session(session);
+}
     });
 
     return res.status(201).json({
