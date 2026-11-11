@@ -9,10 +9,7 @@ import Product from "../Model/Product.model";
 // ADD TO CART
 // =========================
 
-export const addToCart = async (
-  req: Request,
-  res: Response
-) => {
+export const addToCart = async (req: Request,res: Response) => {
   const { productId } = req.params;
   const { quantity = 1 } = req.body;
 
