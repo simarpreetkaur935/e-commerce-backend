@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 
 import Cart from "../Model/Cart.model";
-import Product from "../Model/Product.model";
 
 // =========================
 // ADD TO CART
