@@ -699,7 +699,6 @@ export const updateProductValidations = [
 ];
 //wishlist
 ///add to wishlist
-
 export const addWishlistValidation = [
   param("productId")
     .notEmpty()
