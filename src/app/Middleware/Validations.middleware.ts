@@ -1145,3 +1145,74 @@ export const subscriptionValidation = [
     .withMessage("Please enter a valid email address")
     .normalizeEmail(),
 ];
+
+// =========================
+// REVIEW VALIDATIONS
+// =========================
+//create reviews
+
+
+export const createReviewValidations = [
+  body("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .bail()
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+
+  body("rating")
+    .customSanitizer((value) => value === "" ? undefined : value)
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be an integer between 1 and 5")
+    .toInt(),
+
+  body("comment")
+    .optional({ checkFalsy: true })
+    .isString()
+    .withMessage("Comment must be a string")
+    .bail()
+    .trim(),
+];
+//get review
+
+export const getProductReviewsValidations = [
+  param("productId")
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .bail()
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+];
+// update  validation
+export const updateReviewValidations = [
+  param("reviewId")
+    .notEmpty()
+    .withMessage("Review ID is required")
+    .bail()
+    .isMongoId()
+    .withMessage("Invalid review ID"),
+
+  body("rating")
+    .customSanitizer((value) => value === "" ? undefined : value)
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be an integer between 1 and 5")
+    .toInt(),
+
+  body("comment")
+    .optional({ checkFalsy: true })
+    .isString()
+    .withMessage("Comment must be a string")
+    .bail()
+    .trim(),
+];
+//for get  and del
+export const reviewIdValidations = [
+  param("reviewId")
+    .notEmpty()
+    .withMessage("Review ID is required")
+    .bail()
+    .isMongoId()
+    .withMessage("Invalid review ID"),
+];

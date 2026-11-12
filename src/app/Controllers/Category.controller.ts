@@ -72,12 +72,11 @@ export const getCategoryById = async (req: Request,res: Response) => {
       .populate("parentCategory", "name");
 
     if (!category) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: "Category not found",
       });
 
-      return;
     }
 
     res.status(200).json({
