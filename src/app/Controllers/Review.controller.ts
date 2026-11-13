@@ -2,35 +2,25 @@ import { Request, Response } from "express";
 import Review from "../Model/Review.model";
 import Product from "../Model/Product.model";
 
-type AuthenticatedRequest = Request & {
-  user?: { id: string };
-};
-
-const getUserId = (req: Request): string | undefined =>
-  (req as AuthenticatedRequest).user?.id;
 //create review
 export const createReview = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    const userId = req.user?.id;
 
     const { productId, rating, comment } = req.body;
-    const product = await Product.findById(productId);
+    // const product = await Product.findById(productId);
 
-    if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
-    }
+    // // if (!product) {
+    // //   return res.status(404).json({ success: false, message: "Product not found" });
+    // // }
 
-    const existingReview = await Review.findOne({ user: userId, product: productId });
-    if (existingReview) {
-      return res.status(409).json({
-        success: false,
-        message: "You have already reviewed this product",
-      });
-    }
+    // // const existingReview = await Review.findOne({ user: userId, product: productId });
+    // // if (existingReview) {
+    // //   return res.status(409).json({
+    // //     success: false,
+    // //     message: "You have already reviewed this product",
+    // //   });
+    // // }
 
     const review = await Review.create({
       user: userId,
@@ -45,7 +35,12 @@ export const createReview = async (req: Request, res: Response) => {
       review,
     });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === 11000) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 11000
+    ) {
       return res.status(409).json({
         success: false,
         message: "You have already reviewed this product",
@@ -58,19 +53,18 @@ export const createReview = async (req: Request, res: Response) => {
 };
 //get review
 
-
 export const getProductReviews = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
 
-    const product = await Product.findById(productId);
+    // const product = await Product.findById(productId);
 
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
-    }
+    // if (!product) {
+    //   return res.status(404).json({
+    //     success: false,
+    //     message: "Product not found",
+    //   });
+    // }
 
     const reviews = await Review.find({ product: productId })
       .populate("user", "name avatar")
@@ -82,8 +76,7 @@ export const getProductReviews = async (req: Request, res: Response) => {
     // Calculate average rating
     const averageRating =
       totalReviews > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) /
-          totalReviews
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
         : 0;
 
     return res.status(200).json({
@@ -105,17 +98,15 @@ export const getProductReviews = async (req: Request, res: Response) => {
 //get my review
 export const getMyReviews = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    const userId = req.user?.id;
 
     const reviews = await Review.find({ user: userId })
       .populate("product", "name images price")
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ success: true, count: reviews.length, reviews });
+    return res
+      .status(200)
+      .json({ success: true, count: reviews.length, reviews });
   } catch (error) {
     console.error("Get My Reviews Error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -125,36 +116,33 @@ export const getMyReviews = async (req: Request, res: Response) => {
 // update review
 export const updateReview = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+    throw new Error("here i am", { cause: "in this line tis is the erropr", statusCode: 400 })
+    const userId = req.user?.id;
 
     const { reviewId } = req.params;
-    const { rating, comment } = req.body;
+    // const { rating, comment, xyz } = req.body;
 
-    if (rating === undefined && comment === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide something to update",
-      });
-    }
+    // if (rating === undefined && comment === undefined) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Please provide something to update",
+    //   });
+    // }
 
     const review = await Review.findOneAndUpdate(
       { _id: reviewId, user: userId },
       { $set: { ...req.body } },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: "Review not found or you are not authorized to update it",
-      });
+      // return res.status(404).json({
+      //   success: false,
+      //   message: "Review not found or you are not authorized to update it",
+      // });
+      throw new Error(
+        "Review not found or you are not authorized to update it",
+      );
     }
 
     return res.status(200).json({
@@ -165,23 +153,22 @@ export const updateReview = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Update Review Error:", error);
 
-    return res.status(500).json({
+    return res.status(error.statusCode).json({
       success: false,
-      message: "Server error",
+      message: error.message || "Server Error",
     });
   }
 };
 //del review
 export const deleteReview = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+    const userId = req.user?.id;
 
     const { reviewId } = req.params;
-    const review = await Review.findOneAndDelete({ _id: reviewId, user: userId });
+    const review = await Review.findOneAndDelete({
+      _id: reviewId,
+      user: userId,
+    });
 
     if (!review) {
       return res.status(404).json({
@@ -190,7 +177,9 @@ export const deleteReview = async (req: Request, res: Response) => {
       });
     }
 
-    return res.status(200).json({ success: true, message: "Review deleted successfully" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Review deleted successfully" });
   } catch (error) {
     console.error("Delete Review Error:", error);
     return res.status(500).json({ success: false, message: "Server error" });

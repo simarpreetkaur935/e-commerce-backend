@@ -51,13 +51,9 @@ export const protect = (
     };
 
     // Store user ID in request
-    (req as Request & {
-      user?: {
-        id: string;
-      };
-    }).user = {
-      id: decoded.id,
-    };
+    req.user = {
+  id: decoded.id,
+};
 
     // Move to controller
     next();
