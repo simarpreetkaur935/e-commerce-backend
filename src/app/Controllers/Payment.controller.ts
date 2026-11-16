@@ -27,19 +27,8 @@ interface PopulatedProduct {
 
 type PaymentMethod = "stripe" | "cod";
 
-// =================================================
-// GET LOGGED-IN USER
-// =================================================
 
-const getUserId = (req: Request): string | undefined => {
-  return (
-    req as Request & {
-      user?: {
-        id: string;
-      };
-    }
-  ).user?.id;
-};
+
 
 // =================================================
 // CREATE PAYMENT
@@ -52,32 +41,10 @@ export const createPayment = async (req: Request, res: Response) => {
       paymentMethod: PaymentMethod;
     };
 
-    const userId = getUserId(req);
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+ 
 
-    // VALIDATE PAYMENT METHOD
-
-    if (!["stripe", "cod"].includes(paymentMethod)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payment method. Try again!",
-      });
-    }
-
-    // VALIDATE ORDER ID
-
-    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order ID",
-      });
-    }
 
     // FIND ORDER
 

@@ -1089,11 +1089,11 @@ export const createPaymentValidations = [
 // =========================
 
 export const verifyPaymentValidations = [
-  body("stripeSessionId")
+  body("paymentIntentId")
     .notEmpty()
-    .withMessage("Stripe session ID is required")
+    .withMessage("PaymentIntent ID is required")
     .isString()
-    .withMessage("Stripe session ID must be a string")
+    .withMessage("PaymentIntent ID must be a string")
     .trim(),
 ];
 //order validation
