@@ -11,6 +11,7 @@ import subscriptionRoutes from "./Subscription.routes";
 import offersRoutes from "./Offers.routes";
 import addressRoutes from "./Address.routes";
 import orderRoutes from "./Order.routes";
+import reviewRoutes from "./Review.routes";
 
 const router = express.Router();
 
@@ -36,5 +37,7 @@ router.use("/addresses", addressRoutes);
 
 // ORDER ROUTES
 router.use("/orders", orderRoutes);
+
+router.use("/reviews", reviewRoutes);
 
 export default router;
