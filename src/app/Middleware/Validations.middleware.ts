@@ -6,6 +6,7 @@ import Product from "../Model/Product.model";
 import Wishlist from "../Model/wishlist.model";
 import Cart from "../Model/Cart.model";
 import Subscription from "../Model/Subscription.model";
+import Review from "../Model/Review.model";
 
 // ? ********************************************* Registers *********************************************
 
@@ -1152,37 +1153,72 @@ export const subscriptionValidation = [
 //create reviews
 
 
-export const createReviewValidations = [
+export const createReviewValidation = [
+  // Check productId
   body("productId")
     .notEmpty()
     .withMessage("Product ID is required")
     .bail()
     .isMongoId()
-    .withMessage("Invalid product ID"),
-
-  body("rating")
-    .customSanitizer((value) => value === "" ? undefined : value)
-    .optional()
-    .isInt({ min: 1, max: 5 })
-    .withMessage("Rating must be an integer between 1 and 5")
-    .toInt(),
-
-  body("comment")
-    .optional({ checkFalsy: true })
-    .isString()
-    .withMessage("Comment must be a string")
+    .withMessage("Invalid product ID")
     .bail()
-    .trim(),
+    .custom(async (productId, { req }) => {
+      // Check whether product exists
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      // Check whether user already reviewed this product
+      const existingReview = await Review.findOne({
+        user: req.user?.id,
+        product: productId,
+      });
+
+      if (existingReview) {
+        throw new Error("You have already reviewed this product");
+      }
+
+      return true;
+    }),
+
+  // Check rating
+  body("rating")
+    .notEmpty()
+    .withMessage("Rating is required")
+    .bail()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be between 1 and 5"),
+
+  // Check comment
+  body("comment")
+    .trim()
+    .notEmpty()
+    .withMessage("Comment is required"),
 ];
 //get review
 
-export const getProductReviewsValidations = [
+// GET PRODUCT REVIEWS VALIDATION
+
+export const getProductReviewsValidation = [
   param("productId")
     .notEmpty()
     .withMessage("Product ID is required")
     .bail()
     .isMongoId()
-    .withMessage("Invalid product ID"),
+    .withMessage("Invalid product ID")
+    .bail()
+    .custom(async (productId) => {
+      // Check whether product exists
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Product not found");
+      }
+
+      return true;
+    }),
 ];
 // update  validation
 export const updateReviewValidations = [

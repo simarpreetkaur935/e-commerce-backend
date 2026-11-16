@@ -116,18 +116,11 @@ export const getMyReviews = async (req: Request, res: Response) => {
 // update review
 export const updateReview = async (req: Request, res: Response) => {
   try {
-    throw new Error("here i am", { cause: "in this line tis is the erropr", statusCode: 400 })
+    
     const userId = req.user?.id;
 
     const { reviewId } = req.params;
-    // const { rating, comment, xyz } = req.body;
-
-    // if (rating === undefined && comment === undefined) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Please provide something to update",
-    //   });
-    // }
+    
 
     const review = await Review.findOneAndUpdate(
       { _id: reviewId, user: userId },
@@ -135,27 +128,19 @@ export const updateReview = async (req: Request, res: Response) => {
       { new: true, runValidators: true },
     );
 
-    if (!review) {
-      // return res.status(404).json({
-      //   success: false,
-      //   message: "Review not found or you are not authorized to update it",
-      // });
-      throw new Error(
-        "Review not found or you are not authorized to update it",
-      );
-    }
+  
 
     return res.status(200).json({
       success: true,
       message: "Review updated successfully",
       review,
     });
-  } catch (error) {
+ } catch (error) {
     console.error("Update Review Error:", error);
 
-    return res.status(error.statusCode).json({
+    return res.status(500).json({
       success: false,
-      message: error.message || "Server Error",
+      message: "Server error",
     });
   }
 };
@@ -170,12 +155,7 @@ export const deleteReview = async (req: Request, res: Response) => {
       user: userId,
     });
 
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: "Review not found or you are not authorized to delete it",
-      });
-    }
+   
 
     return res
       .status(200)
