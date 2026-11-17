@@ -171,7 +171,7 @@ export const forgotPassword = async ( req: Request, res: Response
     await sendEmail(
       user!.email,
       "Password Reset OTP",
-      "forgot-password.hbs",
+      "auth/forgot-password.hbs",
       {
         name: user!.name,
         otp,
