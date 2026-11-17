@@ -251,7 +251,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
       paymentIntentId: string;
     };
 
-    const userId = getUserId(req);
+      const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
@@ -394,7 +394,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
 
 export const getPaymentSummary = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req);
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
