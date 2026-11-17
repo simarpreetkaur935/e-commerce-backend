@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface IRole extends Document {
   name: string;
+  slug: string;
   description?: string;
   isActive: boolean;
 }
@@ -9,6 +10,14 @@ export interface IRole extends Document {
 const roleSchema = new Schema<IRole>(
   {
     name: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    slug: {
       type: String,
       required: true,
       unique: true,
