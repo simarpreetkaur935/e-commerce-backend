@@ -47,6 +47,19 @@ const rolePermissions: Record<string, string[]> = {
     "categories.update",
     "categories.delete",
   ],
+  auditor: [
+    "users.read",
+    "products.read",
+    "categories.read",
+    "orders.read",
+    "reviews.read",
+  ],
+  analyst: [
+    "products.read",
+    "categories.read",
+    "orders.read",
+    "reviews.read",
+  ],
 };
 
 const seedRbac = async () => {
