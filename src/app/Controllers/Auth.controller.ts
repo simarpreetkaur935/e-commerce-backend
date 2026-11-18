@@ -9,6 +9,7 @@ import PermissionRole from "../Model/PermissionRole.model";
 import Permission from "../Model/Permission.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
 import { sendEmail } from "../../services/mail/mail.service";
+import type { Payload } from "../../types/token.type";
 
   export const register = async (req: Request, res: Response) => {
   try {
@@ -76,47 +77,56 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const userRoleAssignments = await UserRole.find({
-      user_id: user!._id,
-    });
-    const assignedRoleIds = userRoleAssignments.map(
-      (assignment) => assignment.role_id,
-    );
-    const activeRoles = assignedRoleIds.length
-      ? await Role.find({
-          _id: { $in: assignedRoleIds },
-          isActive: true,
-        })
-      : [];
-    const permissionRoleAssignments = activeRoles.length
-      ? await PermissionRole.find({
-          role_id: { $in: activeRoles.map((role) => role._id) },
-        })
-      : [];
-    const assignedPermissionIds = permissionRoleAssignments.map(
-      (assignment) => assignment.permission_id,
-    );
-    const permissions = assignedPermissionIds.length
-      ? await Permission.find({ _id: { $in: assignedPermissionIds } })
-      : [];
-    const permissionsById = new Map(
-      permissions.map((permission) => [String(permission._id), permission]),
-    );
-    const rolesWithPermissions = activeRoles.map((role) => ({
-      id: String(role._id),
-      name: role.name,
-      slug: role.slug,
-      permissions: permissionRoleAssignments
-        .filter(
-          (assignment) => String(assignment.role_id) === String(role._id),
-        )
-        .map((assignment) => permissionsById.get(String(assignment.permission_id)))
-        .filter((permission) => permission !== undefined)
-        .map((permission) => ({
-          resource: permission.resource,
-          action: permission.action,
-        })),
-    }));
+    const rolesWithPermissions = await UserRole.aggregate<
+      NonNullable<Payload["rolesWithPermissions"]>[number]
+    >([
+      { $match: { user_id: user!._id } },
+      {
+        $lookup: {
+          from: Role.collection.name,
+          localField: "role_id",
+          foreignField: "_id",
+          as: "role",
+        },
+      },
+      { $unwind: "$role" },
+      { $match: { "role.isActive": true } },
+      {
+        $lookup: {
+          from: PermissionRole.collection.name,
+          let: { roleId: "$role._id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$role_id", "$$roleId"] } } },
+            {
+              $lookup: {
+                from: Permission.collection.name,
+                localField: "permission_id",
+                foreignField: "_id",
+                as: "permission",
+              },
+            },
+            { $unwind: "$permission" },
+            {
+              $project: {
+                _id: 0,
+                resource: "$permission.resource",
+                action: "$permission.action",
+              },
+            },
+          ],
+          as: "permissions",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          id: { $toString: "$role._id" },
+          name: "$role.name",
+          slug: "$role.slug",
+          permissions: 1,
+        },
+      },
+    ]);
 
     // Save refresh token
     user!.refreshToken = refreshToken({
@@ -134,8 +144,8 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const accessTokenPayload = {
-      id: user._id,
+    const accessTokenPayload: Payload = {
+      id: String(user._id),
       name: user.name,
       email: user.email,
       rolesWithPermissions,
