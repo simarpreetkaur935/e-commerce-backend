@@ -3,13 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import User from "../Model/User.model";
-import UserRole from "../Model/UserRole.model";
-import Role from "../Model/Role.model";
-import PermissionRole from "../Model/PermissionRole.model";
-import Permission from "../Model/Permission.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
 import { sendEmail } from "../../services/mail/mail.service";
-import type { Payload } from "../../types/token.type";
 
   export const register = async (req: Request, res: Response) => {
   try {
@@ -20,7 +15,6 @@ import type { Payload } from "../../types/token.type";
       password,
       avatar,
       address,
-      role,
     } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -32,11 +26,6 @@ import type { Payload } from "../../types/token.type";
       password: hashedPassword,
       avatar,
       address,
-    });
-
-    await UserRole.create({
-      user_id: user._id,
-      role_id: role._id,
     });
 
     return res.status(201).json({
@@ -66,6 +55,8 @@ import type { Payload } from "../../types/token.type";
 export const login = async (req: Request, res: Response) => {
   try {
     const { password, user } = req.body;
+    console.log(user);
+    
 
     // Compare password
     const isPasswordCorrect = await bcrypt.compare(password, user!.password);
@@ -77,58 +68,6 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const rolesWithPermissions = await UserRole.aggregate<
-      NonNullable<Payload["rolesWithPermissions"]>[number]
-    >([
-      { $match: { user_id: user!._id } },
-      {
-        $lookup: {
-          from: Role.collection.name,
-          localField: "role_id",
-          foreignField: "_id",
-          as: "role",
-        },
-      },
-      { $unwind: "$role" },
-      { $match: { "role.isActive": true } },
-      {
-        $lookup: {
-          from: PermissionRole.collection.name,
-          let: { roleId: "$role._id" },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$role_id", "$$roleId"] } } },
-            {
-              $lookup: {
-                from: Permission.collection.name,
-                localField: "permission_id",
-                foreignField: "_id",
-                as: "permission",
-              },
-            },
-            { $unwind: "$permission" },
-            {
-              $project: {
-                _id: 0,
-                resource: "$permission.resource",
-                action: "$permission.action",
-              },
-            },
-          ],
-          as: "permissions",
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          id: { $toString: "$role._id" },
-          name: "$role.name",
-          slug: "$role.slug",
-          permissions: 1,
-        },
-      },
-    ]);
-
-    // Save refresh token
     user!.refreshToken = refreshToken({
       id: user._id,
       name: user.name,
@@ -144,17 +83,14 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const accessTokenPayload: Payload = {
-      id: String(user._id),
-      name: user.name,
-      email: user.email,
-      rolesWithPermissions,
-    };
-
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      accessToken: accessToken(accessTokenPayload),
+      accessToken: accessToken({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      }),
       user: {
         id: user!._id,
         name: user!.name,
