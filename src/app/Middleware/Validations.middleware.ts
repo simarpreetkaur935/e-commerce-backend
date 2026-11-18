@@ -1,6 +1,7 @@
 import { body, param, query } from "express-validator";
 import type { Request } from "express";
 import User from "../Model/User.model";
+import Role from "../Model/Role.model";
 import Category from "../Model/Category.model";
 import Product from "../Model/Product.model";
 import Wishlist from "../Model/wishlist.model";
@@ -61,6 +62,22 @@ export const registerValidations = [
 
       return true;
     }),
+
+  body("role")
+    .default("customer")
+    .isIn(["customer", "seller"])
+    .withMessage("Registration role must be customer or seller")
+    .bail()
+    .custom(async (value, { req }) => {
+      const role = await Role.findOne({ name: value, isActive: true });
+
+      if (!role) {
+        return Promise.reject("Active registration role not found");
+      }
+
+      req.body.role = role;
+      return true;
+    }),
 ];
 //login
 // Login validations
@@ -72,7 +89,9 @@ export const loginValidations = [
     .isEmail()
     .withMessage("Enter a valid email")
     .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: value });
+      const user = await User.findOne({ email: value }).populate(
+        "user_roles"
+      );
 
       if (!user) {
         return Promise.reject("No account found with this email");

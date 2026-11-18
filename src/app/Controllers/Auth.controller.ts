@@ -3,13 +3,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import User from "../Model/User.model";
+import UserRole from "../Model/UserRole.model";
+import Role from "../Model/Role.model";
+import PermissionRole from "../Model/PermissionRole.model";
+import Permission from "../Model/Permission.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
 import { sendEmail } from "../../services/mail/mail.service";
 
-  export const register = async (
-  req: Request,
-  res: Response
-) => {
+  export const register = async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -18,6 +19,7 @@ import { sendEmail } from "../../services/mail/mail.service";
       password,
       avatar,
       address,
+      role,
     } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -29,6 +31,11 @@ import { sendEmail } from "../../services/mail/mail.service";
       password: hashedPassword,
       avatar,
       address,
+    });
+
+    await UserRole.create({
+      user_id: user._id,
+      role_id: role._id,
     });
 
     return res.status(201).json({
@@ -69,6 +76,48 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    const userRoleAssignments = await UserRole.find({
+      user_id: user!._id,
+    });
+    const assignedRoleIds = userRoleAssignments.map(
+      (assignment) => assignment.role_id,
+    );
+    const activeRoles = assignedRoleIds.length
+      ? await Role.find({
+          _id: { $in: assignedRoleIds },
+          isActive: true,
+        })
+      : [];
+    const permissionRoleAssignments = activeRoles.length
+      ? await PermissionRole.find({
+          role_id: { $in: activeRoles.map((role) => role._id) },
+        })
+      : [];
+    const assignedPermissionIds = permissionRoleAssignments.map(
+      (assignment) => assignment.permission_id,
+    );
+    const permissions = assignedPermissionIds.length
+      ? await Permission.find({ _id: { $in: assignedPermissionIds } })
+      : [];
+    const permissionsById = new Map(
+      permissions.map((permission) => [String(permission._id), permission]),
+    );
+    const rolesWithPermissions = activeRoles.map((role) => ({
+      id: String(role._id),
+      name: role.name,
+      slug: role.slug,
+      permissions: permissionRoleAssignments
+        .filter(
+          (assignment) => String(assignment.role_id) === String(role._id),
+        )
+        .map((assignment) => permissionsById.get(String(assignment.permission_id)))
+        .filter((permission) => permission !== undefined)
+        .map((permission) => ({
+          resource: permission.resource,
+          action: permission.action,
+        })),
+    }));
+
     // Save refresh token
     user!.refreshToken = refreshToken({
       id: user._id,
@@ -85,14 +134,17 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const accessTokenPayload = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      rolesWithPermissions,
+    };
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      accessToken: accessToken({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      }),
+      accessToken: accessToken(accessTokenPayload),
       user: {
         id: user!._id,
         name: user!.name,
