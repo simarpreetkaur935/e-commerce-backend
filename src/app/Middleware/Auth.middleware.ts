@@ -6,9 +6,8 @@ import {
 
 import jwt from "jsonwebtoken";
 
-export const protect = (
-  req: Request,
-  res: Response,
+export const protect = ( req: Request,
+res: Response,
   next: NextFunction
 ) => {
   try {
