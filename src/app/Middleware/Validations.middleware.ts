@@ -75,14 +75,55 @@ export const registerValidations = [
         return Promise.reject("Active registration role not found");
       }
 
-      req.body.role = role;
       return true;
     }),
 ];
 //login
 // Login validations
 
+export const loginValidations = [
+  body("email")
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Enter a valid email")
+    .custom(async (value, { req }) => {
+      const users = await User.aggregate([
+        { $match: { email: value } },
+        {
+          $lookup: {
+            from: "userroles",
+            let: { userId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$user_id", "$$userId"] } } },
+              {
+                $lookup: {
+                  from: "roles",
+                  localField: "role_id",
+                  foreignField: "_id",
+                  as: "role",
+                },
+              },
+              { $unwind: "$role" },
+              { $replaceRoot: { newRoot: "$role" } },
+            ],
+            as: "roles",
+          },
+        },
+        { $unwind: { path: "$roles", preserveNullAndEmptyArrays: true } },
+        { $limit: 1 },
+      ]);
+      const user = users[0];
 
+      if (!user) {
+        return Promise.reject("No account found with this email");
+      }
+      req.body.user = user;
+      return true;
+    }),
+
+  body("password").notEmpty().withMessage("Password is required"),
+];
 //forgot password
 export const forgotPasswordValidations = [
   body("email")
@@ -504,12 +545,7 @@ export const getAllProductsValidation = [
     .optional()
     .isString()
     .bail()
-    .isIn([
-      "best-sellers",
-      "new-arrivals",
-      "todays-deals",
-      "offers",
-    ])
+    .isIn(["best-sellers", "new-arrivals", "todays-deals", "offers"])
     .withMessage("Invalid product type"),
 
   // SORT TYPE
@@ -532,18 +568,20 @@ export const getAllProductsValidation = [
     .isMongoId()
     .withMessage("Invalid cursor ID")
     .bail()
-      .custom((_, { req }) => {
-    const request = req as Request;
+    .custom((_, { req }) => {
+      const request = req as Request;
 
-    const sortType =
-      typeof request.query.sortType === "string"
-        ? request.query.sortType
-        : "price";
+      const sortType =
+        typeof request.query.sortType === "string"
+          ? request.query.sortType
+          : "price";
 
-    const cursorPrice = request.query.cursorPrice;
-    
+      const cursorPrice = request.query.cursorPrice;
+
       if (sortType !== "price") {
-        throw new Error("Cursor pagination is only supported for price sorting");
+        throw new Error(
+          "Cursor pagination is only supported for price sorting",
+        );
       }
 
       if (
@@ -564,18 +602,11 @@ export const getAllProductsValidation = [
     .withMessage("Cursor price must be a valid number"),
 
   // CATEGORY ID
-  query("category")
-    .optional()
-    .isMongoId()
-    .withMessage("Invalid category ID"),
+  query("category").optional().isMongoId().withMessage("Invalid category ID"),
 
   // SEARCH
-  query("search")
-    .optional()
-    .isString()
-    .withMessage("Search must be a string"),
+  query("search").optional().isString().withMessage("Search must be a string"),
 ];
-
 
 //update product
 
@@ -1080,7 +1111,7 @@ export const createPaymentValidations = [
   body("paymentMethod")
     .notEmpty()
     .withMessage("Payment method is required")
-    .isIn(["stripe","cod", "credit_card", "debit_card", "net_banking", "upi"])
+    .isIn(["stripe", "cod", "credit_card", "debit_card", "net_banking", "upi"])
     .withMessage("Invalid payment method"),
 ];
 
@@ -1152,7 +1183,6 @@ export const subscriptionValidation = [
 // =========================
 //create reviews
 
-
 export const createReviewValidation = [
   // Check productId
   body("productId")
@@ -1192,10 +1222,7 @@ export const createReviewValidation = [
     .withMessage("Rating must be between 1 and 5"),
 
   // Check comment
-  body("comment")
-    .trim()
-    .notEmpty()
-    .withMessage("Comment is required"),
+  body("comment").trim().notEmpty().withMessage("Comment is required"),
 ];
 //get review
 
@@ -1230,7 +1257,7 @@ export const updateReviewValidations = [
     .withMessage("Invalid review ID"),
 
   body("rating")
-    .customSanitizer((value) => value === "" ? undefined : value)
+    .customSanitizer((value) => (value === "" ? undefined : value))
     .optional()
     .isInt({ min: 1, max: 5 })
     .withMessage("Rating must be an integer between 1 and 5")

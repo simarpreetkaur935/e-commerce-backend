@@ -6,18 +6,19 @@ import User from "../Model/User.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
 import { sendEmail } from "../../services/mail/mail.service";
 import UserRole from "../Model/UserRole.model";
+import Role from "../Model/Role.model";
 
- export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      avatar,
-      address,
-      role,
-    } = req.body;
+    const { name, email, phone, password, avatar, address } = req.body;
+    const role = await Role.findOne({ name: req.body.role, isActive: true });
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "Active registration role not found",
+      });
+    }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -48,7 +49,7 @@ import UserRole from "../Model/UserRole.model";
         phone: user.phone,
         avatar: user.avatar,
         address: user.address,
-        roles: [role.name],
+        roles: role.name,
       },
     });
   } catch (error) {
@@ -66,8 +67,6 @@ import UserRole from "../Model/UserRole.model";
 export const login = async (req: Request, res: Response) => {
   try {
     const { password, user } = req.body;
-    console.log(user);
-    
 
     // Compare password
     const isPasswordCorrect = await bcrypt.compare(password, user!.password);
@@ -79,28 +78,28 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const assignedRoles = await UserRole.aggregate([
-      { $match: { user_id: user._id } },
-      {
-        $lookup: {
-          from: "roles",
-          localField: "role_id",
-          foreignField: "_id",
-          as: "role",
-        },
-      },
-      { $unwind: "$role" },
-      { $match: { "role.isActive": true } },
-      { $project: { _id: 0, name: "$role.name" } },
-    ]);
-    const roleNames = assignedRoles.map(({ name }) => name);
+    // //
+    // const assignedRoles = await User.aggregate([
+    //   { $match: { _id: user._id } },
+    //   {
+    //     $lookup: {
+    //       from: "userroles",
+    //       localField: "user_id",
+    //       foreignField: "_id",
+    //       as: "role",
+    //     },
+    //   },
+    //   { $unwind: "$role" },
+    //   { $match: { "role.isActive": true } },
+    //   { $project: { _id: 0, name: "$role.name" } },
+    // ]);
+    // const roleNames = assignedRoles.map(({ name }) => name);
 
     user!.refreshToken = refreshToken({
       id: user._id,
       name: user.name,
       email: user.email,
     });
-    await user!.save();
 
     // Send refresh token as HTTP-only cookie
     res.cookie("refreshToken", user.refreshToken, {
@@ -125,7 +124,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user!.phone,
         avatar: user!.avatar,
         address: user!.address,
-        roles: roleNames,
+        roles: user!.roles.name,
       },
     });
   } catch (error) {
@@ -172,24 +171,18 @@ export const logout = async (_req: Request, res: Response) => {
   }
 };
 
-export const forgotPassword = async ( req: Request, res: Response
-) => {
+export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { user } = req.body;
 
     // Generate 6-digit OTP
-    const otp = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Save OTP
     user!.resetPasswordOtp = otp;
 
     // OTP expires in 10 minutes
-    user!.resetPasswordOtpExpires =
-      new Date(
-        Date.now() + 10 * 60 * 1000
-      );
+    user!.resetPasswordOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await user!.save();
 
@@ -202,7 +195,7 @@ export const forgotPassword = async ( req: Request, res: Response
         name: user!.name,
         otp,
         expiryMinutes: 10,
-      }
+      },
     );
 
     return res.status(200).json({
@@ -210,10 +203,7 @@ export const forgotPassword = async ( req: Request, res: Response
       message: "OTP sent successfully to your email",
     });
   } catch (error) {
-    console.error(
-      "Forgot Password Error:",
-      error
-    );
+    console.error("Forgot Password Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -262,21 +252,18 @@ export const resetPassword = async (req: Request, res: Response) => {
 // REFRESH ACCESS TOKEN
 // =========================
 
-export const refreshAccessToken = async ( req: Request, res: Response) => {
+export const refreshAccessToken = async (req: Request, res: Response) => {
   try {
-    const currentRefreshToken =
-      req.cookies?.refreshToken;
+    const currentRefreshToken = req.cookies?.refreshToken;
 
     if (!currentRefreshToken) {
       return res.status(401).json({
         success: false,
-        message:
-          "Session expired. Please login again.",
+        message: "Session expired. Please login again.",
       });
     }
 
-    const jwtSecret =
-      process.env.NODE_APP_JWT_SECRET_KEY;
+    const jwtSecret = process.env.NODE_APP_JWT_SECRET_KEY;
 
     if (!jwtSecret) {
       return res.status(500).json({
@@ -286,10 +273,7 @@ export const refreshAccessToken = async ( req: Request, res: Response) => {
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(
-      currentRefreshToken,
-      jwtSecret
-    ) as {
+    const decoded = jwt.verify(currentRefreshToken, jwtSecret) as {
       id: string;
     };
 
@@ -304,8 +288,7 @@ export const refreshAccessToken = async ( req: Request, res: Response) => {
 
       return res.status(401).json({
         success: false,
-        message:
-          "Session expired. Please login again.",
+        message: "Session expired. Please login again.",
       });
     }
 
@@ -321,23 +304,19 @@ export const refreshAccessToken = async ( req: Request, res: Response) => {
       accessToken: newAccessToken,
     });
   } catch (error) {
-    console.error(
-      "Refresh Token Error:",
-      error
-    );
+    console.error("Refresh Token Error:", error);
 
     // Refresh token expired or invalid
     res.clearCookie("refreshToken");
 
     return res.status(401).json({
       success: false,
-      message:
-        "Session expired. Please login again.",
+      message: "Session expired. Please login again.",
     });
   }
 };
 //verify otp
-export const verifyOtp = async ( req: Request,res: Response) => {
+export const verifyOtp = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
 
@@ -364,10 +343,7 @@ export const verifyOtp = async ( req: Request,res: Response) => {
       message: "OTP verified successfully",
     });
   } catch (error) {
-    console.error(
-      "Verify OTP Error:",
-      error
-    );
+    console.error("Verify OTP Error:", error);
 
     return res.status(500).json({
       success: false,

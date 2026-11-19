@@ -11,6 +11,7 @@ const userRoleSchema = new Schema<IUserRole>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      alias: "user",
     },
 
     role_id: {
@@ -21,11 +22,12 @@ const userRoleSchema = new Schema<IUserRole>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 userRoleSchema.index({ user_id: 1, role_id: 1 }, { unique: true });
 
 export const UserRole = mongoose.model<IUserRole>("UserRole", userRoleSchema);
+// user_roles
 
 export default UserRole;
