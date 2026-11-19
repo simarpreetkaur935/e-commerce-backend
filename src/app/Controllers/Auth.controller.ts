@@ -5,8 +5,9 @@ import jwt from "jsonwebtoken";
 import User from "../Model/User.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
 import { sendEmail } from "../../services/mail/mail.service";
+import UserRole from "../Model/UserRole.model";
 
-  export const register = async (req: Request, res: Response) => {
+ export const register = async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -15,10 +16,13 @@ import { sendEmail } from "../../services/mail/mail.service";
       password,
       avatar,
       address,
+      role,
     } = req.body;
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create user
     const user = await User.create({
       name,
       email,
@@ -26,6 +30,12 @@ import { sendEmail } from "../../services/mail/mail.service";
       password: hashedPassword,
       avatar,
       address,
+    });
+
+    // Assign role to user
+    await UserRole.create({
+      user_id: user._id,
+      role_id: role._id,
     });
 
     return res.status(201).json({
@@ -38,6 +48,7 @@ import { sendEmail } from "../../services/mail/mail.service";
         phone: user.phone,
         avatar: user.avatar,
         address: user.address,
+        roles: [role.name],
       },
     });
   } catch (error) {
@@ -67,6 +78,22 @@ export const login = async (req: Request, res: Response) => {
         message: "Invalid email or password",
       });
     }
+
+    const assignedRoles = await UserRole.aggregate([
+      { $match: { user_id: user._id } },
+      {
+        $lookup: {
+          from: "roles",
+          localField: "role_id",
+          foreignField: "_id",
+          as: "role",
+        },
+      },
+      { $unwind: "$role" },
+      { $match: { "role.isActive": true } },
+      { $project: { _id: 0, name: "$role.name" } },
+    ]);
+    const roleNames = assignedRoles.map(({ name }) => name);
 
     user!.refreshToken = refreshToken({
       id: user._id,
@@ -98,6 +125,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user!.phone,
         avatar: user!.avatar,
         address: user!.address,
+        roles: roleNames,
       },
     });
   } catch (error) {

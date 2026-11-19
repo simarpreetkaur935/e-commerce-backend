@@ -82,24 +82,7 @@ export const registerValidations = [
 //login
 // Login validations
 
-export const loginValidations = [
-  body("email")
-    .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Enter a valid email")
-    .custom(async (value, { req }) => {
-      const user = await User.findOne({ email: value });
 
-      if (!user) {
-        return Promise.reject("No account found with this email");
-      }
-      req.body.user = user;
-      return true;
-    }),
-
-  body("password").notEmpty().withMessage("Password is required"),
-];
 //forgot password
 export const forgotPasswordValidations = [
   body("email")
