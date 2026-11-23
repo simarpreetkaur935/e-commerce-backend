@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../Model/User.model";
+import UserRole from "../Model/UserRole.model";
+import Role from "../Model/Role.model";
+import PermissionRole from "../Model/PermissionRole.model";
+import Permission from "../Model/Permission.model";
 
 // =========================
 // GET MY PROFILE
@@ -36,6 +40,77 @@ export const getMyProfile = async ( req: Request,res: Response) => {
     });
   } catch (error) {
     console.error("Get Profile Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// =========================
+// GET MY GLOBAL DETAILS
+// =========================
+
+export const getMyDetails = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const user = await User.findById(userId).select(
+      "-password -refreshToken -resetPasswordOtp -resetPasswordOtpExpires"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const userRoles = await UserRole.find({ user_id: user._id });
+    const roleIds = userRoles.map(({ role_id }) => role_id);
+    const roles = await Role.find({ _id: { $in: roleIds } });
+    const rolePermissions = await PermissionRole.find({
+      role_id: { $in: roles.map(({ _id }) => _id) },
+    });
+    const permissionIds = rolePermissions.map(({ permission_id }) => permission_id);
+    const permissions = await Permission.find({ _id: { $in: permissionIds } });
+
+    return res.status(200).json({
+      success: true,
+      user,
+      roles: roles.map((role) => ({
+        id: role._id,
+        name: role.name,
+        slug: role.slug,
+        description: role.description,
+        isActive: role.isActive,
+        permissions: permissions
+          .filter((permission) =>
+            rolePermissions.some(
+              (rolePermission) =>
+                rolePermission.role_id.toString() === role._id.toString() &&
+                rolePermission.permission_id.toString() === permission._id.toString()
+            )
+          )
+          .map((permission) => ({
+            id: permission._id,
+            name: permission.name,
+            resource: permission.resource,
+            action: permission.action,
+            description: permission.description,
+          })),
+      })),
+    });
+  } catch (error) {
+    console.error("Get User Details Error:", error);
 
     return res.status(500).json({
       success: false,
