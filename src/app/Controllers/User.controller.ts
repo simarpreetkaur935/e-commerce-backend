@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import User from "../Model/User.model";
 
 // =========================
@@ -36,6 +37,108 @@ export const getMyProfile = async ( req: Request,res: Response) => {
     });
   } catch (error) {
     console.error("Get Profile Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// =========================
+// GET MY GLOBAL DETAILS
+// =========================
+
+export const getMyDetails = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+   
+
+    const [user] = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: "userroles",
+          let: { userId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$user_id", "$$userId"] } } },
+            {
+              $lookup: {
+                from: "roles",
+                localField: "role_id",
+                foreignField: "_id",
+                pipeline: [
+                  {
+                    $lookup: {
+                      from: "permissionroles",
+                      let: { roleId: "$_id" },
+                      pipeline: [
+                        { $match: { $expr: { $eq: ["$role_id", "$$roleId"] } } },
+                        {
+                          $lookup: {
+                            from: "permissions",
+                            localField: "permission_id",
+                            foreignField: "_id",
+                            pipeline: [
+                              { $project: { name: 1, resource: 1, action: 1, description: 1 } },
+                            ],
+                            as: "permission",
+                          },
+                        },
+                        { $unwind: "$permission" },
+                        { $replaceRoot: { newRoot: "$permission" } },
+                      ],
+                      as: "permissions",
+                    },
+                  },
+                  {
+                    $project: {
+                      _id: 0,
+                      id: "$_id",
+                      name: 1,
+                      slug: 1,
+                      description: 1,
+                      isActive: 1,
+                      permissions: 1,
+                    },
+                  },
+                ],
+                as: "role",
+              },
+            },
+            { $unwind: "$role" },
+            { $replaceRoot: { newRoot: "$role" } },
+          ],
+          as: "roles",
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          refreshToken: 0,
+          resetPasswordOtp: 0,
+          resetPasswordOtpExpires: 0,
+        },
+      },
+    ]);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const { roles, ...userDetails } = user;
+
+    return res.status(200).json({
+      success: true,
+      user: userDetails,
+      roles,
+    });
+  } catch (error) {
+    console.error("Get User Details Error:", error);
 
     return res.status(500).json({
       success: false,

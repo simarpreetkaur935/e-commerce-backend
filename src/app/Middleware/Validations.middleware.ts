@@ -10,8 +10,11 @@ import Review from "../Model/Review.model";
 
 // ? ********************************************* Registers *********************************************
 
+//register validation
 export const registerValidations = [
-  body("name").notEmpty().withMessage("Name is required!"),
+  body("name")
+    .notEmpty()
+    .withMessage("Name is required!"),
 
   body("email")
     .notEmpty()
@@ -30,7 +33,7 @@ export const registerValidations = [
 
   body("phone")
     .notEmpty()
-    .withMessage("phone is required!")
+    .withMessage("Phone is required!")
     .custom(async (value) => {
       const isExist = await User.findOne({
         phone: value,
@@ -45,13 +48,13 @@ export const registerValidations = [
 
   body("password")
     .notEmpty()
-    .withMessage("password is required!")
+    .withMessage("Password is required!")
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters!"),
 
   body("confirmPassword")
     .notEmpty()
-    .withMessage("confirm_password is required!")
+    .withMessage("Confirm password is required!")
     .custom((value, { req }) => {
       const { password } = req.body;
 
@@ -67,6 +70,8 @@ export const registerValidations = [
     .isIn(["customer", "seller"])
     .withMessage("Registration role must be customer or seller"),
 ];
+
+
 //login
 // Login validations
 
