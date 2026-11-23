@@ -1,10 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import User from "../Model/User.model";
-import UserRole from "../Model/UserRole.model";
-import Role from "../Model/Role.model";
-import PermissionRole from "../Model/PermissionRole.model";
-import Permission from "../Model/Permission.model";
 
 // =========================
 // GET MY PROFILE
@@ -56,16 +53,75 @@ export const getMyDetails = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+   
 
-    const user = await User.findById(userId).select(
-      "-password -refreshToken -resetPasswordOtp -resetPasswordOtpExpires"
-    );
+    const [user] = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: "userroles",
+          let: { userId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$user_id", "$$userId"] } } },
+            {
+              $lookup: {
+                from: "roles",
+                localField: "role_id",
+                foreignField: "_id",
+                pipeline: [
+                  {
+                    $lookup: {
+                      from: "permissionroles",
+                      let: { roleId: "$_id" },
+                      pipeline: [
+                        { $match: { $expr: { $eq: ["$role_id", "$$roleId"] } } },
+                        {
+                          $lookup: {
+                            from: "permissions",
+                            localField: "permission_id",
+                            foreignField: "_id",
+                            pipeline: [
+                              { $project: { name: 1, resource: 1, action: 1, description: 1 } },
+                            ],
+                            as: "permission",
+                          },
+                        },
+                        { $unwind: "$permission" },
+                        { $replaceRoot: { newRoot: "$permission" } },
+                      ],
+                      as: "permissions",
+                    },
+                  },
+                  {
+                    $project: {
+                      _id: 0,
+                      id: "$_id",
+                      name: 1,
+                      slug: 1,
+                      description: 1,
+                      isActive: 1,
+                      permissions: 1,
+                    },
+                  },
+                ],
+                as: "role",
+              },
+            },
+            { $unwind: "$role" },
+            { $replaceRoot: { newRoot: "$role" } },
+          ],
+          as: "roles",
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          refreshToken: 0,
+          resetPasswordOtp: 0,
+          resetPasswordOtpExpires: 0,
+        },
+      },
+    ]);
 
     if (!user) {
       return res.status(404).json({
@@ -74,40 +130,12 @@ export const getMyDetails = async (req: Request, res: Response) => {
       });
     }
 
-    const userRoles = await UserRole.find({ user_id: user._id });
-    const roleIds = userRoles.map(({ role_id }) => role_id);
-    const roles = await Role.find({ _id: { $in: roleIds } });
-    const rolePermissions = await PermissionRole.find({
-      role_id: { $in: roles.map(({ _id }) => _id) },
-    });
-    const permissionIds = rolePermissions.map(({ permission_id }) => permission_id);
-    const permissions = await Permission.find({ _id: { $in: permissionIds } });
+    const { roles, ...userDetails } = user;
 
     return res.status(200).json({
       success: true,
-      user,
-      roles: roles.map((role) => ({
-        id: role._id,
-        name: role.name,
-        slug: role.slug,
-        description: role.description,
-        isActive: role.isActive,
-        permissions: permissions
-          .filter((permission) =>
-            rolePermissions.some(
-              (rolePermission) =>
-                rolePermission.role_id.toString() === role._id.toString() &&
-                rolePermission.permission_id.toString() === permission._id.toString()
-            )
-          )
-          .map((permission) => ({
-            id: permission._id,
-            name: permission.name,
-            resource: permission.resource,
-            action: permission.action,
-            description: permission.description,
-          })),
-      })),
+      user: userDetails,
+      roles,
     });
   } catch (error) {
     console.error("Get User Details Error:", error);
