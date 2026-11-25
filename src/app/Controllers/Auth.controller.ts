@@ -78,7 +78,9 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const roleNames = (user!.roles ?? []).map((role: { name: string }) => role.name);
+    const roleNames = (user!.roles ?? []).map(
+      (role: { name: string }) => role.name,
+    );
 
     // //
     // const assignedRoles = await User.aggregate([
@@ -101,6 +103,8 @@ export const login = async (req: Request, res: Response) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      role: roleNames,
+      permissions: [],
     });
 
     // Send refresh token as HTTP-only cookie
@@ -118,8 +122,8 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        roles: roleNames,
-        permissions: []
+        role: roleNames,
+        permissions: [],
       }),
       user: {
         id: user!._id,
@@ -129,7 +133,7 @@ export const login = async (req: Request, res: Response) => {
         avatar: user!.avatar,
         address: user!.address,
         roles: roleNames,
-        permissions: []
+        permissions: [],
       },
     });
   } catch (error) {
@@ -297,11 +301,18 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       });
     }
 
+    const roleNames = (user!.roles ?? []).map(
+      (role: { name: string }) => role.name,
+    );
+
+
     // Create new access token
     const newAccessToken = accessToken({
       id: String(user._id),
       name: user.name,
       email: user.email,
+      role: roleNames,
+      permissions: [],
     });
 
     return res.status(200).json({
