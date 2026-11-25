@@ -5,6 +5,11 @@ declare global {
     interface Request {
       user?: {
         id: string;
+        role?: string;
+        permissions?: {
+          resource: string;
+          action: string;
+        }[];
       };
     }
   }
