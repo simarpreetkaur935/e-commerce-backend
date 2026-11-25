@@ -19,12 +19,3 @@ export const index = async (req: Request, res: Response) => {
   }
 };
 
-export const index = async(req:Request, res:Response)=>{
-    try {
-        const returnOrders = await Order.countDocuments({
-            orderStatus: "returned"
-        })
-    } catch (error) {
-        
-    }
-}
