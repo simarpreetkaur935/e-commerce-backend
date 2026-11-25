@@ -2,7 +2,6 @@ import express from "express";
 
 import {
   getMyProfile,
-  getMyDetails,
   updateMyProfile,
   changePassword,
   deleteMyAccount,
@@ -14,7 +13,6 @@ const userRoutes = express.Router();
 
 userRoutes.get("/me",  protect, getMyProfile);
 
-userRoutes.get("/me/details", protect, getMyDetails);
 
 userRoutes.patch("/me",protect,  updateMyProfile);
 

@@ -78,6 +78,8 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    const roleNames = (user!.roles ?? []).map((role: { name: string }) => role.name);
+
     // //
     // const assignedRoles = await User.aggregate([
     //   { $match: { _id: user._id } },
@@ -116,7 +118,7 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        roles: user!.roles.name,
+        roles: roleNames,
         permissions: []
       }),
       user: {
@@ -126,7 +128,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user!.phone,
         avatar: user!.avatar,
         address: user!.address,
-        roles: user!.roles.name,
+        roles: roleNames,
         permissions: []
       },
     });
