@@ -116,6 +116,8 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        roles: user!.roles.name,
+        permissions: []
       }),
       user: {
         id: user!._id,
@@ -125,6 +127,7 @@ export const login = async (req: Request, res: Response) => {
         avatar: user!.avatar,
         address: user!.address,
         roles: user!.roles.name,
+        permissions: []
       },
     });
   } catch (error) {
