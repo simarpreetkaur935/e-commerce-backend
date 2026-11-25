@@ -46,6 +46,7 @@ export const protect = (
       jwtSecret
     ) as {
       id: string;
+      
       name: string;
       email: string;
     };
