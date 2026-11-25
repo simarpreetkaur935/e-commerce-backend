@@ -8,11 +8,12 @@ import {
   deleteProduct,
   getRelatedProducts
 } from "../app/Controllers/Product.controller";
+import { protect } from "../app/Middleware/Auth.middleware";
 
 const router = express.Router();
 
 // Create product
-router.post("/", createProduct);
+router.post("/", protect, createProduct);
 
 // Get all products
 router.get("/", getAllProducts);

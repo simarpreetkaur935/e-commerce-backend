@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../Model/Product.model";
+import ProductSeller from "../Model/ProductSeller.model";
 import Order from "../Model/Order.model"
 
 
@@ -11,6 +12,8 @@ import mongoose from "mongoose";
 
 // CREATE PRODUCT
 export const createProduct = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+
   try {
     const {
       name,
@@ -45,23 +48,43 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    const product = await Product.create({
-      name: name.trim(),
-      description: description.trim(),
-      brand,
-      category,
-      images: images || [],
-      price,
-      discountPrice,
-      tax,
-      stock: stock ?? 0,
-      sku: sku.trim(),
-      lowStockThreshold: lowStockThreshold ?? 5,
-      specifications: specifications || {},
-      tags: tags || [],
-      weight,
-      isActive: isActive ?? true,
-      isFeatured: isFeatured ?? false,
+    const sellerId = req.user?.id;
+    // if (!sellerId) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Unauthorized",
+    //   });
+    // }
+
+    let product: any;
+    await session.withTransaction(async () => {
+      const [createdProduct] = await Product.create(
+        [{
+          name: name.trim(),
+          description: description.trim(),
+          brand,
+          category,
+          images: images || [],
+          price,
+          discountPrice,
+          tax,
+          stock: stock ?? 0,
+          sku: sku.trim(),
+          lowStockThreshold: lowStockThreshold ?? 5,
+          specifications: specifications || {},
+          tags: tags || [],
+          weight,
+          isActive: isActive ?? true,
+          isFeatured: isFeatured ?? false,
+        }],
+        { session },
+      );
+
+      await ProductSeller.create(
+        [{ product: createdProduct._id, seller: sellerId }],
+        { session },
+      );
+      product = createdProduct;
     });
 
     return res.status(201).json({
@@ -76,6 +99,8 @@ export const createProduct = async (req: Request, res: Response) => {
       success: false,
       message: "Server error",
     });
+  } finally {
+    await session.endSession();
   }
 };
 //new arrival
