@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 
 import User from "../Model/User.model";
 import { accessToken, refreshToken } from "../../utils/Token.util";
@@ -78,6 +77,18 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    const roleName = user!.roles?.[0]?.name ?? "";
+    const permissions = Array.from(
+      new Map<string, { resource: string; action: string }>(
+        (user!.roles ?? []).flatMap((role: { permissions?: { resource: string; action: string }[] }) =>
+          (role.permissions ?? []).map((permission) => [
+            `${permission.resource}:${permission.action}`,
+            { resource: permission.resource, action: permission.action },
+          ]),
+        ),
+      ).values(),
+    );
+
     // //
     // const assignedRoles = await User.aggregate([
     //   { $match: { _id: user._id } },
@@ -99,6 +110,8 @@ export const login = async (req: Request, res: Response) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      role: roleName,
+      permissions,
     });
 
     // Send refresh token as HTTP-only cookie
@@ -116,6 +129,8 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: roleName,
+        permissions,
       }),
       user: {
         id: user!._id,
@@ -124,7 +139,8 @@ export const login = async (req: Request, res: Response) => {
         phone: user!.phone,
         avatar: user!.avatar,
         address: user!.address,
-        roles: user!.roles.name,
+        roles: roleName,
+        permissions,
       },
     });
   } catch (error) {
@@ -263,23 +279,10 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       });
     }
 
-    const jwtSecret = process.env.NODE_APP_JWT_SECRET_KEY;
-
-    if (!jwtSecret) {
-      return res.status(500).json({
-        success: false,
-        message: "JWT secret is not configured",
-      });
-    }
-
-    // Verify refresh token
-    const decoded = jwt.verify(currentRefreshToken, jwtSecret) as {
-      id: string;
-    };
-
-    // Check token exists in database
+    // The protect middleware has already verified the bearer access token.
+    // Confirm the refresh cookie is still the token stored for that user.
     const user = await User.findOne({
-      _id: decoded.id,
+      _id: req.user?.id,
       refreshToken: currentRefreshToken,
     });
 
@@ -297,6 +300,8 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       id: String(user._id),
       name: user.name,
       email: user.email,
+      role: req.user?.role ?? "",
+      permissions: req.user?.permissions ?? [],
     });
 
     return res.status(200).json({

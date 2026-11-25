@@ -17,6 +17,7 @@ import {
   forgotPasswordValidations,
   resetPasswordValidations,
 } from "../app/Middleware/Validations.middleware";
+import { protect } from "../app/Middleware/Auth.middleware";
 
 import { ErrorsCheck } from "../app/Middleware/ErrorsCheck.middleware";
 
@@ -92,6 +93,7 @@ authRoutes.post(
 
 authRoutes.post(
   "/refresh-token",
+  protect,
   refreshAccessToken
 );
 

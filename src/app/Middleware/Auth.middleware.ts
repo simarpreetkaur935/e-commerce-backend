@@ -47,12 +47,19 @@ res: Response,
       id: string;
       name: string;
       email: string;
+      role?: string;
+      permissions?: {
+        resource: string;
+        action: string;
+      }[];
     };
 
     // Store user ID in request
     req.user = {
-  id: decoded.id,
-};
+      id: decoded.id,
+      role: decoded.role,
+      permissions: decoded.permissions,
+    };
 
     // Move to controller
     next();

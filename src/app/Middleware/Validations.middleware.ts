@@ -95,6 +95,28 @@ export const loginValidations = [
                   from: "roles",
                   localField: "role_id",
                   foreignField: "_id",
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: "permissionroles",
+                        let: { roleId: "$_id" },
+                        pipeline: [
+                          { $match: { $expr: { $eq: ["$role_id", "$$roleId"] } } },
+                          {
+                            $lookup: {
+                              from: "permissions",
+                              localField: "permission_id",
+                              foreignField: "_id",
+                              as: "permission",
+                            },
+                          },
+                          { $unwind: "$permission" },
+                          { $replaceRoot: { newRoot: "$permission" } },
+                        ],
+                        as: "permissions",
+                      },
+                    },
+                  ],
                   as: "role",
                 },
               },
@@ -104,7 +126,6 @@ export const loginValidations = [
             as: "roles",
           },
         },
-        { $unwind: { path: "$roles", preserveNullAndEmptyArrays: true } },
         { $limit: 1 },
       ]);
       const user = users[0];
