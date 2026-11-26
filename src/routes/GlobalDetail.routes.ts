@@ -1,11 +1,16 @@
-import express from "express";
-import { protect } from "../app/Middleware/Auth.middleware";
-import { index } from "../app/Controllers/GlobalDetail.controller";
 
+import { Router } from "express";
 
-const router = express.Router();
+import {
+  getGlobalOrderDetails,
+} from "../app/Controllers/GlobalDetail.controller";
 
+const router = Router();
 
-router.get("/", protect, index );
+// =========================
+// GLOBAL ADMIN DETAILS
+// =========================
+
+router.get("/orders", getGlobalOrderDetails);
 
 export default router;
