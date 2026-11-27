@@ -22,8 +22,6 @@ import Order from "../Model/Order.model";
 //   }
 // };
 
-
-
 // // =========================
 // // GET TOTAL RETURNED ORDERS
 // // =========================
@@ -39,7 +37,7 @@ import Order from "../Model/Order.model";
 //       returnedOrders,
 //       success: true,
 //       message: "Returned orders fetched successfully",
-      
+
 //     });
 //   } catch (error) {
 //     console.error("Get returned orders error:", error);
@@ -72,35 +70,34 @@ import Order from "../Model/Order.model";
 
 // }
 
-
 // =========================
 // GET GLOBAL ORDER DETAILS
 // =========================
 
-export const getGlobalOrderDetails = async ( _req: Request, res: Response) => {
+export const getGlobalOrderDetails = async (_req: Request, res: Response) => {
   try {
-    const [paidOrders, returnedOrders, cancelledOrders] =
-      await Promise.all([
-        Order.countDocuments({
-          paymentStatus: "paid",
-        }),
+    const [paidOrders, returnedOrders, cancelledOrders] = await Promise.all([
+      Order.countDocuments({
+        paymentStatus: "paid",
+        // sellerId: req.user.id,
+      }),
 
-        Order.countDocuments({
-          orderStatus: "returned",
-        }),
+      Order.countDocuments({
+        orderStatus: "returned",
+      }),
 
-        Order.countDocuments({
-          orderStatus: "cancelled",
-        }),
-      ]);
+      Order.countDocuments({
+        orderStatus: "cancelled",
+      }),
+    ]);
 
     return res.status(200).json({
       success: true,
       message: "Global order details fetched successfully",
-    
-        paidOrders,
-        returnedOrders,
-        cancelledOrders,
+
+      paidOrders,
+      returnedOrders,
+      cancelledOrders,
     });
   } catch (error) {
     console.error("Get global order details error:", error);
